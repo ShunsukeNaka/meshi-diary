@@ -8,8 +8,10 @@ Go で書いた API サーバー。仕様は [docs/api.md](../docs/api.md)、テ
 api/
 ├── cmd/server/          エントリーポイント（設定の読み込み、DB・R2 の準備、HTTP サーバーの起動）
 └── internal/
+    ├── auth/            ログイン（ID トークンの検証、セッション Cookie、認証ミドルウェア）
     ├── config/          環境変数の読み込み
     ├── handler/         ルーティングと HTTP ハンドラー
+    ├── httpx/           JSON のレスポンスと共通のエラーレスポンス
     └── infra/
         ├── postgres/    PostgreSQL（Neon）への接続と GORM のモデル
         └── r2/          Cloudflare R2（S3 互換 API）の操作
@@ -53,6 +55,9 @@ curl -i http://127.0.0.1:8080/health
 | `R2_ACCESS_KEY_ID` | ○ | R2 の API トークンのアクセスキー ID |
 | `R2_SECRET_ACCESS_KEY` | ○ | R2 の API トークンのシークレット |
 | `R2_BUCKET` | ○ | 写真を保存するバケット名 |
+| `GOOGLE_CLIENT_ID` | ○ | Google の OAuth クライアント ID。ID トークンの `aud` の検証に使う |
+| `SESSION_SECRET` | ○ | セッション Cookie の署名に使う秘密鍵。32 バイト以上（`openssl rand -base64 32` で作る）。足りないと起動しない |
+| `ALLOWED_EMAILS` | ○ | `/signup` できるメールアドレス（カンマ区切り） |
 
 ## デプロイ
 
