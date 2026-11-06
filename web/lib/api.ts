@@ -59,3 +59,12 @@ export function signup(idToken: string) {
     body: JSON.stringify({ id_token: idToken }),
   });
 }
+
+// ログイン中のユーザーを返す。未ログインなら ApiError（status 401）を投げる
+export function me() {
+  return request<{ user: User }>("/me");
+}
+
+export function logout() {
+  return request<void>("/logout", { method: "POST" });
+}
