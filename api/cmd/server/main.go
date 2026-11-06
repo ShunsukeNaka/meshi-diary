@@ -62,6 +62,7 @@ func run() error {
 			Storage:       storage,
 			Sessions:      sessions,
 			IDTokens:      auth.GoogleVerifier{ClientID: cfg.Auth.GoogleClientID},
+			Users:         postgres.NewUsers(db),
 			AllowedEmails: cfg.Auth.AllowedEmails,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
