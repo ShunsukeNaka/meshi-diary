@@ -25,6 +25,8 @@ type Deps struct {
 func NewRouter(d Deps) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", Health)
+	mux.HandleFunc("POST /signup", Signup(d))
+	mux.HandleFunc("POST /login", Login(d))
 	mux.Handle("GET /me", d.Sessions.RequireSession(Me(d)))
 	mux.HandleFunc("POST /logout", Logout(d))
 	return mux

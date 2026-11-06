@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,6 +26,15 @@ func (f fakeUsers) FindByID(_ context.Context, id uuid.UUID) (postgres.User, err
 		return postgres.User{}, postgres.ErrNotFound
 	}
 	return u, nil
+}
+
+// FindByGoogleSub と Create は /me・/logout では使わないので、UserRepository を満たすためだけに置く。
+func (f fakeUsers) FindByGoogleSub(context.Context, string) (postgres.User, error) {
+	return postgres.User{}, postgres.ErrNotFound
+}
+
+func (f fakeUsers) Create(context.Context, *postgres.User) error {
+	return errors.New("not implemented")
 }
 
 func newTestDeps(t *testing.T, users fakeUsers) Deps {

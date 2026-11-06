@@ -13,6 +13,10 @@ import (
 type UserRepository interface {
 	// FindByID は id のユーザーを返す。いないときは postgres.ErrNotFound を返す。
 	FindByID(ctx context.Context, id uuid.UUID) (postgres.User, error)
+	// FindByGoogleSub は google_sub のユーザーを返す。いないときは postgres.ErrNotFound を返す。
+	FindByGoogleSub(ctx context.Context, sub string) (postgres.User, error)
+	// Create は user を登録する。google_sub がすでにあるときは gorm.ErrDuplicatedKey を返す。
+	Create(ctx context.Context, user *postgres.User) error
 }
 
 // userResponse はレスポンスの user（docs/api.md の /signup・/login・/me）。
