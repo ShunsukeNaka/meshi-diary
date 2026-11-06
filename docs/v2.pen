@@ -2058,8 +2058,8 @@
       "type": "frame",
       "id": "v00o02",
       "x": 1410,
-      "y": 140,
-      "name": "04 日記の詳細",
+      "y": 1100,
+      "name": "没案: 04 日記の詳細（写真メイン）",
       "clip": true,
       "width": 390,
       "fill": "$bg",
@@ -2668,6 +2668,254 @@
               "content": "キーボード",
               "fontFamily": "$font",
               "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "Y0P9m",
+      "x": 1410,
+      "y": 140,
+      "name": "04 日記の詳細",
+      "clip": true,
+      "width": 390,
+      "fill": "$bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "id": "C4ykM",
+          "type": "ref",
+          "ref": "Snacq",
+          "name": "Status Bar",
+          "width": "fill_container"
+        },
+        {
+          "type": "frame",
+          "id": "N0KKe3",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "height": 52,
+          "padding": [
+            0,
+            8
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "cX20x",
+              "name": "Back",
+              "width": 40,
+              "height": 40,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "xCHT3",
+                  "name": "Icon",
+                  "width": 22,
+                  "height": 22,
+                  "icon": "chevron-left",
+                  "library": "lucide",
+                  "fill": "$text-primary"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "wVffc",
+              "name": "Edit",
+              "width": 40,
+              "height": 40,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "VRdIJ",
+                  "name": "Icon",
+                  "width": 22,
+                  "height": 22,
+                  "icon": "pencil",
+                  "library": "lucide",
+                  "fill": "$text-primary"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Y4klHl",
+          "name": "Photos",
+          "clip": true,
+          "width": "fill_container",
+          "gap": 8,
+          "padding": [
+            4,
+            0,
+            4,
+            24
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "rectangle",
+              "cornerRadius": 10,
+              "id": "L02bjt",
+              "name": "Photo 1",
+              "fill": "$placeholder",
+              "width": 200,
+              "height": 150
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 10,
+              "id": "Emdl7",
+              "name": "Photo 2",
+              "fill": "$placeholder",
+              "width": 200,
+              "height": 150
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "XXQSd",
+          "name": "Reading Area",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 14,
+          "padding": [
+            16,
+            24,
+            32,
+            24
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "uZLKF",
+              "name": "Meta",
+              "gap": 14,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "z9zCc",
+                  "name": "Meta 2026年11月6日（金）",
+                  "gap": 5,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "Pq2AU",
+                      "name": "Icon",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "calendar",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    },
+                    {
+                      "type": "text",
+                      "id": "xbr2a",
+                      "name": "Label",
+                      "fill": "$text-secondary",
+                      "content": "2026年11月6日（金）",
+                      "fontFamily": "$font",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "p7AfN",
+                  "name": "Meta 昼食",
+                  "gap": 5,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "X0RP3",
+                      "name": "Icon",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "utensils",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    },
+                    {
+                      "type": "text",
+                      "id": "zuvWM",
+                      "name": "Label",
+                      "fill": "$text-secondary",
+                      "content": "昼食",
+                      "fontFamily": "$font",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "C7qUX",
+              "name": "Memo Field",
+              "width": "fill_container",
+              "stroke": "$border",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 10,
+              "padding": [
+                10,
+                0
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "VbPzM",
+                  "name": "Memo Icon",
+                  "width": 18,
+                  "height": 18,
+                  "icon": "notebook-pen",
+                  "library": "lucide",
+                  "fill": "$text-secondary"
+                },
+                {
+                  "type": "text",
+                  "id": "y5SGA",
+                  "name": "Value",
+                  "fill": "$text-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "駅前のラーメン屋",
+                  "fontFamily": "$font",
+                  "fontSize": 15,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "PsVBK",
+              "name": "Body",
+              "fill": "$text-primary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "研究室のみんなで、駅前に新しくできたラーメン屋へ。並んだけど、待っているあいだの話がいちばん楽しかった。\n\n先輩が院試のときの話をしてくれて、思っていたより準備は早めに始めたほうがいいらしい。来月から少しずつ過去問を解いてみようと思う。\n\n次は先輩おすすめのつけ麺を食べに行く約束をした。",
+              "lineHeight": 1.9,
+              "fontFamily": "$font",
+              "fontSize": 17,
               "fontWeight": "normal"
             }
           ]
