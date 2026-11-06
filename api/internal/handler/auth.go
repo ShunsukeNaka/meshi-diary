@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
+	"strings"
+
+	"gorm.io/gorm"
 
 	"github.com/ShunsukeNaka/meshi-diary/api/internal/auth"
 	"github.com/ShunsukeNaka/meshi-diary/api/internal/httpx"
@@ -15,6 +19,35 @@ const maxAuthBodyBytes = 64 << 10
 
 type authRequest struct {
 	IDToken string `json:"id_token"`
+}
+
+// Signup は Google アカウントでユーザーを登録する（docs/api.md の POST /signup）。
+func Signup(d Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		identity, ok := verifyIDToken(w, r, d.IDTokens)
+		if !ok {
+			return
+		}
+
+		// 許可するかどうかの判定にだけメールアドレスを使い、保存はしない
+		if !identity.EmailVerified || !slices.Contains(d.AllowedEmails, strings.ToLower(identity.Email)) {
+			httpx.WriteError(w, http.StatusForbidden, httpx.CodeForbidden, "このアカウントは登録できません")
+			return
+		}
+
+		user := postgres.User{GoogleSub: identity.Sub, Name: identity.Name}
+		if err := d.Users.Create(r.Context(), &user); err != nil {
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				httpx.WriteError(w, http.StatusConflict, httpx.CodeConflict, "このアカウントはすでに登録されています")
+				return
+			}
+			httpx.WriteInternalError(w, err)
+			return
+		}
+
+		d.Sessions.Issue(w, user.ID)
+		httpx.WriteJSON(w, http.StatusCreated, map[string]userResponse{"user": newUserResponse(user)})
+	}
 }
 
 // Login は登録ずみの Google アカウントでログインする（docs/api.md の POST /login）。

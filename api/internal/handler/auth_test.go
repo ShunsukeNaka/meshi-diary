@@ -134,6 +134,101 @@ func decodeUser(t *testing.T, rec *httptest.ResponseRecorder) userResponse {
 	return body["user"]
 }
 
+func TestSignup(t *testing.T) {
+	t.Run("許可されたアカウントは 201 で登録し、Cookie を発行する", func(t *testing.T) {
+		users := &fakeAuthUsers{bySub: map[string]postgres.User{}}
+		router, sessions := newTestRouter(t, users)
+
+		rec := post(router, "/signup", `{"id_token":"tok-allowed"}`)
+
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("status = %d, want 201 (%s)", rec.Code, rec.Body.String())
+		}
+		saved, ok := users.bySub[allowed.Sub]
+		if !ok {
+			t.Fatal("user was not saved")
+		}
+		if saved.Name != allowed.Name {
+			t.Fatalf("saved name = %q, want %q", saved.Name, allowed.Name)
+		}
+		got := decodeUser(t, rec)
+		if got.ID != saved.ID || got.Name != allowed.Name || !got.CreatedAt.Equal(saved.CreatedAt) {
+			t.Fatalf("response user = %+v, saved = %+v", got, saved)
+		}
+		if id := sessionUserID(t, rec, sessions); id != saved.ID {
+			t.Fatalf("session user_id = %v, want %v", id, saved.ID)
+		}
+	})
+
+	t.Run("レスポンスにメールアドレスを含めない", func(t *testing.T) {
+		router, _ := newTestRouter(t, &fakeAuthUsers{bySub: map[string]postgres.User{}})
+
+		rec := post(router, "/signup", `{"id_token":"tok-allowed"}`)
+
+		if strings.Contains(strings.ToLower(rec.Body.String()), "example.com") {
+			t.Fatalf("response contains email: %s", rec.Body.String())
+		}
+	})
+
+	cases := []struct {
+		name   string
+		body   string
+		users  map[string]postgres.User
+		status int
+		code   string
+	}{
+		{"id_token がないと 400", `{}`, nil, http.StatusBadRequest, httpx.CodeValidationError},
+		{"JSON でないと 400", `not json`, nil, http.StatusBadRequest, httpx.CodeValidationError},
+		{"ID トークンが正しくないと 401", `{"id_token":"tok-bad"}`, nil, http.StatusUnauthorized, httpx.CodeUnauthorized},
+		{"ALLOWED_EMAILS にないと 403", `{"id_token":"tok-other"}`, nil, http.StatusForbidden, httpx.CodeForbidden},
+		{"email_verified が false だと 403", `{"id_token":"tok-unverified"}`, nil, http.StatusForbidden, httpx.CodeForbidden},
+		{
+			"登録ずみだと 409", `{"id_token":"tok-allowed"}`,
+			map[string]postgres.User{allowed.Sub: {ID: uuid.New(), GoogleSub: allowed.Sub, Name: allowed.Name}},
+			http.StatusConflict, httpx.CodeConflict,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			bySub := tc.users
+			if bySub == nil {
+				bySub = map[string]postgres.User{}
+			}
+			before := len(bySub)
+			users := &fakeAuthUsers{bySub: bySub}
+			router, sessions := newTestRouter(t, users)
+
+			rec := post(router, "/signup", tc.body)
+
+			if rec.Code != tc.status {
+				t.Fatalf("status = %d, want %d (%s)", rec.Code, tc.status, rec.Body.String())
+			}
+			if code := errorCode(t, rec); code != tc.code {
+				t.Fatalf("code = %q, want %q", code, tc.code)
+			}
+			if len(users.bySub) != before {
+				t.Fatal("user should not be saved")
+			}
+			if id := sessionUserID(t, rec, sessions); id != uuid.Nil {
+				t.Fatal("session cookie should not be issued")
+			}
+		})
+	}
+
+	t.Run("DB のエラーは 500", func(t *testing.T) {
+		router, _ := newTestRouter(t, &fakeAuthUsers{bySub: map[string]postgres.User{}, err: errors.New("db down")})
+
+		rec := post(router, "/signup", `{"id_token":"tok-allowed"}`)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("status = %d, want 500", rec.Code)
+		}
+		if code := errorCode(t, rec); code != httpx.CodeInternalError {
+			t.Fatalf("code = %q", code)
+		}
+	})
+}
+
 func TestLogin(t *testing.T) {
 	registered := postgres.User{
 		ID:        uuid.New(),
