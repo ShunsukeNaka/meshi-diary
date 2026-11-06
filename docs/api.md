@@ -9,7 +9,7 @@ designDoc「7.4 API 設計」の詳細。DB のテーブル定義は [table.md](
 | 環境 | URL |
 | --- | --- |
 | ローカル | `http://localhost:8080` |
-| 本番 | <!-- 例: https://api.example.com --> |
+| 本番 | `https://<サーバーのドメイン>/meshi-diary-api` |
 
 ### 認証
 
@@ -24,7 +24,7 @@ designDoc「7.4 API 設計」の詳細。DB のテーブル定義は [table.md](
 | --- | --- |
 | 名前 | `session` |
 | 値 | `user_id` と有効期限を HMAC-SHA256 で署名した文字列。DB にはセッションを保存しない |
-| 属性 | `HttpOnly; Secure; SameSite=Lax; Path=/` |
+| 属性 | `HttpOnly; Secure; SameSite=Lax; Path=/`（本番では Apache が `Path=/meshi-diary-api/` に書き換える） |
 | 有効期限 | 30 日（`Max-Age=2592000`） |
 
 - **前提**: フロントエンドと API を同じサイトのドメインに置く（例: `meshi.example.com` と `api.meshi.example.com`）。ドメインのサイトが違うと Cookie がサードパーティ Cookie 扱いになり、ブラウザによっては送られない

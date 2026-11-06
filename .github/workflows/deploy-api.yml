@@ -1,0 +1,79 @@
+# master に API の変更が入ったら、テスト・ビルドしてサーバーにデプロイする。
+# サーバーの初期設定と Secrets の登録は api/README.md の「デプロイ」を参照。
+name: Deploy API
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "api/**"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch:
+
+# デプロイが同時に2つ走らないようにする（途中のデプロイは止めずに、終わるのを待つ）
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: api/go.sum
+
+      - name: Test
+        run: |
+          go vet ./...
+          go test ./...
+
+      # cgo を使っていないので静的バイナリにする。サーバーに Go は要らない
+      - name: Build
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
+        run: go build -trimpath -ldflags="-s -w" -o bin/server ./cmd/server
+
+      - name: Set up SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          # ホスト鍵を確かめ、なりすましたサーバーには送らない
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host deploy-target
+            HostName $SSH_HOST
+            Port ${SSH_PORT:-22}
+            User shunsuke
+            IdentityFile ~/.ssh/id_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+
+      - name: Upload binary
+        run: scp bin/server deploy-target:services/meshi-diary/server.new
+
+      - name: Restart and check health
+        run: ssh deploy-target 'bash -s' < deploy/remote-deploy.sh
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
