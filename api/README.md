@@ -53,3 +53,87 @@ curl -i http://127.0.0.1:8080/health
 | `R2_ACCESS_KEY_ID` | ○ | R2 の API トークンのアクセスキー ID |
 | `R2_SECRET_ACCESS_KEY` | ○ | R2 の API トークンのシークレット |
 | `R2_BUCKET` | ○ | 写真を保存するバケット名 |
+
+## デプロイ
+
+master に `api/` の変更が入ると、GitHub Actions（[.github/workflows/deploy-api.yml](../.github/workflows/deploy-api.yml)）が次を行う。
+
+1. `go vet` と `go test` を実行する（失敗したらデプロイしない）
+2. 静的バイナリをビルドする（`CGO_ENABLED=0`。サーバーに Go は要らない）
+3. SSH でサーバーの `~/services/meshi-diary/server.new` に送る
+4. [deploy/remote-deploy.sh](deploy/remote-deploy.sh) をサーバーで実行し、`server` に置き換えて再起動する。`/health` が 15 秒以内に通らなければ、元のバイナリに戻して失敗にする
+
+GitHub の Actions のページから手動でも実行できる（`workflow_dispatch`）。
+
+| 項目 | 値 |
+| --- | --- |
+| ユーザー | `shunsuke`（SSH の接続も API の実行もこのユーザー） |
+| 置き場所 | `~/services/meshi-diary/`（`server` と `.env`） |
+| 起動 | systemd のサービス `meshi-diary-api`（[deploy/meshi-diary-api.service](deploy/meshi-diary-api.service)）。`/etc/systemd/system/` に置き、`shunsuke` で動かす |
+
+`.env` は CI から送らない。サーバーに手で置く。マイグレーションも CI では行わないので、手元で `make migrate-up` を実行する。
+
+### サーバーの初期設定（1回だけ）
+
+サーバーに `shunsuke` でログインして行う。
+
+```sh
+# 1. 置き場所を作り、.env を置く（中身は .env.example を参照）
+mkdir -p ~/services/meshi-diary
+chmod 600 ~/services/meshi-diary/.env
+
+# 2. サービスを登録する（meshi-diary-api.service はリポジトリの api/deploy/ からコピーする）
+sudo cp meshi-diary-api.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable meshi-diary-api
+
+# 3. CI がパスワードなしで再起動できるようにする（中身は api/deploy/sudoers-meshi-diary-api を貼る）
+sudo visudo -f /etc/sudoers.d/meshi-diary-api
+sudo -n systemctl restart meshi-diary-api   # パスワードを聞かれなければよい（バイナリがまだ無いので起動は失敗してよい）
+```
+
+CI が sudo で実行できるのは、[deploy/sudoers-meshi-diary-api](deploy/sudoers-meshi-diary-api) に書いた、引数まで決まったコマンドだけ。デプロイ用の鍵が漏れても、ほかのコマンドを root で実行されないようにしている。
+
+最初のバイナリは CI のデプロイで送られ、そのときにサービスが起動する。
+
+API は `https://<サーバーのドメイン>/meshi-diary-api/` で公開する（例: `/meshi-diary-api/health`）。Apache から転送する設定は [deploy/apache-meshi-diary-api.conf](deploy/apache-meshi-diary-api.conf)。<サーバーのドメイン> の HTTPS の VirtualHost に読み込ませる。
+
+```sh
+sudo cp apache-meshi-diary-api.conf /etc/apache2/meshi-diary-api.conf
+sudo apache2ctl -S        # <サーバーのドメイン> の *:443 がどのファイルに書かれているかを見る
+# そのファイルの <VirtualHost *:443> の中に、次の1行を足す
+#   Include /etc/apache2/meshi-diary-api.conf
+sudo a2enmod proxy proxy_http
+sudo apache2ctl configtest
+sudo systemctl reload apache2
+curl -i https://<サーバーのドメイン>/meshi-diary-api/health
+```
+
+### デプロイ用の SSH 鍵と Secrets
+
+手元で、デプロイ専用の鍵を作る（パスフレーズなし。ほかの用途には使わない）。
+
+```sh
+ssh-keygen -t ed25519 -N '' -C 'meshi-diary deploy' -f ./meshi-diary-deploy
+# 公開鍵をサーバーの ~/.ssh/authorized_keys に足す
+ssh-copy-id -i ./meshi-diary-deploy.pub shunsuke@<サーバー>
+# サーバーのホスト鍵を取る（ポートが 22 以外なら -p <ポート> を付ける）
+ssh-keyscan <サーバー>
+```
+
+GitHub のリポジトリの Settings > Secrets and variables > Actions に登録する。登録したら、手元の秘密鍵（`meshi-diary-deploy`）は消してよい。
+
+| 名前 | 内容 |
+| --- | --- |
+| `SSH_HOST` | サーバーのホスト名か IP アドレス |
+| `SSH_PORT` | SSH のポート。22 なら登録しなくてよい |
+| `SSH_PRIVATE_KEY` | `meshi-diary-deploy`（秘密鍵）の中身 |
+| `SSH_KNOWN_HOSTS` | `ssh-keyscan` の出力 |
+
+### 状態を見る・手で操作する
+
+```sh
+systemctl status meshi-diary-api
+journalctl -u meshi-diary-api -f             # ログ（見えなければ sudo を付ける）
+sudo systemctl restart meshi-diary-api       # .env を書き換えたあとなど
+```

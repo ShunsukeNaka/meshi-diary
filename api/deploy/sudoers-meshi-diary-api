@@ -1,0 +1,4 @@
+# CI（shunsuke で SSH する）が、パスワードなしで API の再起動とログの表示だけできるようにする。
+# サーバーで `sudo visudo -f /etc/sudoers.d/meshi-diary-api` を開き、この中身を貼る。
+# 引数まで完全に一致するコマンドだけを許す（ほかの引数を付けると sudo のパスワードを聞かれる）。
+shunsuke ALL=(root) NOPASSWD: /usr/bin/systemctl restart meshi-diary-api, /usr/bin/journalctl -u meshi-diary-api -n 50 --no-pager

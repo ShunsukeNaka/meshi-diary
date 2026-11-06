@@ -1,0 +1,19 @@
+# meshi-diary API の systemd のサービス。
+# サーバーの /etc/systemd/system/ に置き、shunsuke ユーザーで動かす。
+[Unit]
+Description=meshi-diary API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=shunsuke
+Group=shunsuke
+WorkingDirectory=/home/shunsuke/services/meshi-diary
+EnvironmentFile=/home/shunsuke/services/meshi-diary/.env
+ExecStart=/home/shunsuke/services/meshi-diary/server
+# 落ちたら（起動直後に DB につながらなかったときも）5 秒おきに起動し直す
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
