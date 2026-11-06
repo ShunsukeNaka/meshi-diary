@@ -17,6 +17,7 @@ type Deps struct {
 	Storage  *r2.Client
 	Sessions *auth.Sessions
 	IDTokens auth.IDTokenVerifier
+	Users    UserRepository
 	// AllowedEmails は /signup できるメールアドレス（小文字）。
 	AllowedEmails []string
 }
