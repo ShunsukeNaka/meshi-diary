@@ -1504,8 +1504,8 @@
       "type": "frame",
       "id": "jdnSF",
       "x": 940,
-      "y": 140,
-      "name": "03 日記の編集",
+      "y": 1100,
+      "name": "没案: 03 日記の編集（フォーム型）",
       "clip": true,
       "width": 390,
       "fill": "$bg",
@@ -2230,16 +2230,44 @@
               ]
             },
             {
-              "type": "text",
-              "id": "I5VlPp",
-              "name": "Memo",
-              "fill": "$text-primary",
-              "textGrowth": "fixed-width",
+              "type": "frame",
+              "id": "qcmrz",
+              "name": "Memo Field",
               "width": "fill_container",
-              "content": "駅前のラーメン屋",
-              "fontFamily": "$font",
-              "fontSize": 22,
-              "fontWeight": "700"
+              "stroke": "$border",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 10,
+              "padding": [
+                10,
+                0
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "gwFza",
+                  "name": "Memo Icon",
+                  "width": 18,
+                  "height": 18,
+                  "icon": "notebook-pen",
+                  "library": "lucide",
+                  "fill": "$text-secondary"
+                },
+                {
+                  "type": "text",
+                  "id": "BewgX",
+                  "name": "Value",
+                  "fill": "$text-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "駅前のラーメン屋",
+                  "fontFamily": "$font",
+                  "fontSize": 15,
+                  "fontWeight": "normal"
+                }
+              ]
             },
             {
               "type": "text",
@@ -2252,6 +2280,394 @@
               "lineHeight": 1.8,
               "fontFamily": "$font",
               "fontSize": 15,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "JEfRL",
+      "x": 940,
+      "y": 140,
+      "name": "03 日記の編集",
+      "clip": true,
+      "width": 390,
+      "height": 844,
+      "fill": "$bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "id": "ozLwr",
+          "type": "ref",
+          "ref": "Snacq",
+          "name": "Status Bar",
+          "width": "fill_container"
+        },
+        {
+          "type": "frame",
+          "id": "ETvod",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "height": 52,
+          "padding": [
+            0,
+            8
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "IEqhr",
+              "name": "Close",
+              "width": 40,
+              "height": 40,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "niv8X",
+                  "name": "Icon",
+                  "width": 22,
+                  "height": 22,
+                  "icon": "x",
+                  "library": "lucide",
+                  "fill": "$text-primary"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "TmNnY",
+              "name": "Save",
+              "height": 36,
+              "fill": "$text-primary",
+              "cornerRadius": 18,
+              "padding": [
+                0,
+                18
+              ],
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "sq2RT",
+                  "name": "Label",
+                  "fill": "$on-primary",
+                  "content": "保存",
+                  "fontFamily": "$font",
+                  "fontSize": 15,
+                  "fontWeight": "700"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "x5aN6",
+          "name": "Writing Area",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 14,
+          "padding": [
+            4,
+            24,
+            16,
+            24
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "v9G2VP",
+              "name": "Meta Chips",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "yGxrH",
+                  "name": "Chip 11月6日（金）",
+                  "height": 30,
+                  "fill": "$surface",
+                  "cornerRadius": 15,
+                  "gap": 6,
+                  "padding": [
+                    0,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "Jnvx2",
+                      "name": "Icon",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "calendar",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    },
+                    {
+                      "type": "text",
+                      "id": "vr9jZ",
+                      "name": "Label",
+                      "fill": "$text-primary",
+                      "content": "11月6日（金）",
+                      "fontFamily": "$font",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "rxrh3",
+                      "name": "Caret",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "chevron-down",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "fcGla",
+                  "name": "Chip 昼食",
+                  "height": 30,
+                  "fill": "$surface",
+                  "cornerRadius": 15,
+                  "gap": 6,
+                  "padding": [
+                    0,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "u1qns",
+                      "name": "Icon",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "utensils",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Z8ZS4",
+                      "name": "Label",
+                      "fill": "$text-primary",
+                      "content": "昼食",
+                      "fontFamily": "$font",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "Nseuj",
+                      "name": "Caret",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "chevron-down",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "shUGj",
+              "name": "Memo Field",
+              "width": "fill_container",
+              "stroke": "$border",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "gap": 10,
+              "padding": [
+                10,
+                0
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "Z8Z4TB",
+                  "name": "Memo Icon",
+                  "width": 18,
+                  "height": 18,
+                  "icon": "notebook-pen",
+                  "library": "lucide",
+                  "fill": "$text-secondary"
+                },
+                {
+                  "type": "text",
+                  "id": "L7a6vh",
+                  "name": "Value",
+                  "fill": "$text-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "駅前のラーメン屋",
+                  "fontFamily": "$font",
+                  "fontSize": 15,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "t641Rk",
+              "name": "Body Area",
+              "width": "fill_container",
+              "height": "fill_container",
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Ize8l",
+                  "name": "Body",
+                  "fill": "$text-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "研究室のみんなで、駅前に新しくできたラーメン屋へ。並んだけど、待っているあいだの話がいちばん楽しかった。\n\n先輩が院試のときの話をしてくれて、",
+                  "lineHeight": 1.9,
+                  "fontFamily": "$font",
+                  "fontSize": 17,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Bkjk6",
+          "name": "Photo Strip",
+          "width": "fill_container",
+          "gap": 8,
+          "padding": [
+            0,
+            24,
+            10,
+            24
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "rectangle",
+              "cornerRadius": 8,
+              "id": "CUUku",
+              "name": "Photo 1",
+              "fill": "$placeholder",
+              "width": 48,
+              "height": 48
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 8,
+              "id": "f9HMtI",
+              "name": "Photo 2",
+              "fill": "$placeholder",
+              "width": 48,
+              "height": 48
+            },
+            {
+              "type": "text",
+              "id": "s3rTEF",
+              "name": "Photo Count",
+              "fill": "$text-secondary",
+              "content": "2 / 10",
+              "fontFamily": "$font",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "styFE",
+          "name": "Keyboard Toolbar",
+          "width": "fill_container",
+          "height": 48,
+          "fill": "$surface",
+          "stroke": "$border",
+          "strokeWidth": {
+            "top": 1
+          },
+          "gap": 4,
+          "padding": [
+            0,
+            16
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "btodq",
+              "name": "写真を追加",
+              "width": 40,
+              "height": 40,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "OBFA4",
+                  "name": "Icon",
+                  "width": 22,
+                  "height": 22,
+                  "icon": "image-plus",
+                  "library": "lucide",
+                  "fill": "$text-primary"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Ew8ZD",
+              "name": "Spacer",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "type": "text",
+              "id": "HPpet",
+              "name": "Char Count",
+              "fill": "$text-secondary",
+              "content": "68文字",
+              "fontFamily": "$font",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "enuQl",
+          "name": "Keyboard (参考)",
+          "width": "fill_container",
+          "height": 260,
+          "fill": "$placeholder",
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "RbzbT",
+              "name": "Label",
+              "fill": "$text-secondary",
+              "content": "キーボード",
+              "fontFamily": "$font",
+              "fontSize": 13,
               "fontWeight": "normal"
             }
           ]
