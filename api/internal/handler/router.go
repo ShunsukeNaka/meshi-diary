@@ -28,5 +28,6 @@ func NewRouter(d Deps) http.Handler {
 	mux.HandleFunc("POST /signup", Signup(d))
 	mux.HandleFunc("POST /login", Login(d))
 	mux.Handle("GET /me", d.Sessions.RequireSession(Me(d)))
+	mux.HandleFunc("POST /logout", Logout(d))
 	return mux
 }
