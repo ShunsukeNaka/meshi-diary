@@ -3,12 +3,12 @@ import { Inter, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
-  variable: "--font-inter",
+  variable: "--next-font-inter",
   subsets: ["latin"],
 });
 
 const notoSansJP = Noto_Sans_JP({
-  variable: "--font-noto-sans-jp",
+  variable: "--next-font-noto-sans-jp",
   subsets: ["latin"],
 });
 

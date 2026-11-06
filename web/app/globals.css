@@ -11,6 +11,7 @@
   --on-primary: #ffffff;
 }
 
+/* next/font の変数は --next-font-* にして、Tailwind の --font-* と名前がぶつからないようにする */
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -20,8 +21,8 @@
   --color-text-secondary: var(--text-secondary);
   --color-on-primary: var(--on-primary);
   --radius-app: 12px;
-  --font-sans: var(--font-noto-sans-jp), sans-serif;
-  --font-inter: var(--font-inter), var(--font-noto-sans-jp), sans-serif;
+  --font-sans: var(--next-font-noto-sans-jp), sans-serif;
+  --font-inter: var(--next-font-inter), var(--next-font-noto-sans-jp), sans-serif;
 }
 
 body {
