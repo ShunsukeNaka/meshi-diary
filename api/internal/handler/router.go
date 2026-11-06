@@ -22,8 +22,9 @@ type Deps struct {
 	AllowedEmails []string
 }
 
-func NewRouter(_ Deps) http.Handler {
+func NewRouter(d Deps) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", Health)
+	mux.HandleFunc("POST /login", Login(d))
 	return mux
 }

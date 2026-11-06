@@ -7,6 +7,7 @@ import (
 
 	"github.com/ShunsukeNaka/meshi-diary/api/internal/auth"
 	"github.com/ShunsukeNaka/meshi-diary/api/internal/httpx"
+	"github.com/ShunsukeNaka/meshi-diary/api/internal/infra/postgres"
 )
 
 // maxAuthBodyBytes は /signup・/login のリクエストボディの上限。ID トークンは数 KB なので十分。
@@ -14,6 +15,29 @@ const maxAuthBodyBytes = 64 << 10
 
 type authRequest struct {
 	IDToken string `json:"id_token"`
+}
+
+// Login は登録ずみの Google アカウントでログインする（docs/api.md の POST /login）。
+func Login(d Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		identity, ok := verifyIDToken(w, r, d.IDTokens)
+		if !ok {
+			return
+		}
+
+		user, err := d.Users.FindByGoogleSub(r.Context(), identity.Sub)
+		if errors.Is(err, postgres.ErrNotFound) {
+			httpx.WriteError(w, http.StatusNotFound, httpx.CodeNotFound, "このアカウントは登録されていません")
+			return
+		}
+		if err != nil {
+			httpx.WriteInternalError(w, err)
+			return
+		}
+
+		d.Sessions.Issue(w, user.ID)
+		httpx.WriteJSON(w, http.StatusOK, map[string]userResponse{"user": newUserResponse(user)})
+	}
 }
 
 // verifyIDToken はリクエストボディの id_token を検証する。
