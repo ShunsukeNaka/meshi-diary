@@ -80,3 +80,14 @@ func (d *Diaries) ListBetween(ctx context.Context, userID uuid.UUID, from, to ti
 		Find(&diaries).Error
 	return diaries, err
 }
+
+// ListByDate は userID のユーザーの、date の日記を返す。
+// 食事の区分の順（enum の定義順: 朝食・昼食・夕食・その他）、同じ区分の中は作った順に並べる。
+func (d *Diaries) ListByDate(ctx context.Context, userID uuid.UUID, date time.Time) ([]Diary, error) {
+	diaries := []Diary{}
+	err := d.db.WithContext(ctx).
+		Where("user_id = ? AND eaten_on = ?", userID, date).
+		Order("status, created_at").
+		Find(&diaries).Error
+	return diaries, err
+}

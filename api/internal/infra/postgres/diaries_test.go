@@ -150,4 +150,28 @@ func TestDiaries(t *testing.T) {
 			}
 		}
 	})
+	t.Run("ListByDate orders by meal type then creation", func(t *testing.T) {
+		u := createTestUser(t, tx)
+		other := createTestDiary(t, tx, u.ID, "2026-11-06", MealTypeOther)
+		dinner := createTestDiary(t, tx, u.ID, "2026-11-06", MealTypeDinner)
+		lunch1 := createTestDiary(t, tx, u.ID, "2026-11-06", MealTypeLunch)
+		breakfast := createTestDiary(t, tx, u.ID, "2026-11-06", MealTypeBreakfast)
+		lunch2 := createTestDiary(t, tx, u.ID, "2026-11-06", MealTypeLunch)
+		createTestDiary(t, tx, u.ID, "2026-11-07", MealTypeBreakfast)
+		createTestDiary(t, tx, createTestUser(t, tx).ID, "2026-11-06", MealTypeBreakfast)
+
+		got, err := diaries.ListByDate(ctx, u.ID, time.Date(2026, 11, 6, 0, 0, 0, 0, time.UTC))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []uuid.UUID{breakfast.ID, lunch1.ID, lunch2.ID, dinner.ID, other.ID}
+		if len(got) != len(want) {
+			t.Fatalf("got %d diaries, want %d", len(got), len(want))
+		}
+		for i := range want {
+			if got[i].ID != want[i] {
+				t.Fatalf("got[%d] = %s, want %v", i, got[i].Status, want[i])
+			}
+		}
+	})
 }
