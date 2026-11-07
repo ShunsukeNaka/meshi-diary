@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createDiary,
   updateDiary,
   type DiaryInput,
   type MealType,
+  type Photo,
 } from "@/lib/api";
 import {
   calendarHref,
@@ -17,32 +18,86 @@ import {
 import {
   CalendarIcon,
   ChevronDownIcon,
+  ImagePlusIcon,
   NotebookPenIcon,
   UtensilsIcon,
   XIcon,
 } from "@/components/icons";
 import ConfirmDialog from "@/components/confirm-dialog";
+import {
+  acceptedTypes,
+  checkFiles,
+  fromSaved,
+  maxPhotos,
+  photosChanged,
+  savePhotos,
+  type PhotoItem,
+} from "./photo-edits";
+import PhotoSheet from "./photo-sheet";
+import PhotoStrip from "./photo-strip";
 
 // 日記の編集画面（docs/v2.pen の「03 日記の編集」「PC 03 日記の編集」）。
 // diaryId がないときは新しく書く。あるときはその日記を編集する。
 export default function DiaryEditor({
   diaryId,
   initial,
+  initialPhotos = [],
 }: {
   diaryId?: string;
   initial: DiaryInput;
+  initialPhotos?: Photo[];
 }) {
   const router = useRouter();
   const [input, setInput] = useState<DiaryInput>(initial);
+  const [initialItems] = useState<PhotoItem[]>(() => fromSaved(initialPhotos));
+  const [photos, setPhotos] = useState<PhotoItem[]>(initialItems);
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  // 選んだ写真のプレビュー用の URL は、画面を閉じるときに解放する
+  const previews = useRef(new Set<string>());
+  useEffect(() => {
+    const urls = previews.current;
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, []);
 
   const dirty =
     input.eaten_on !== initial.eaten_on ||
     input.status !== initial.status ||
     (input.info ?? "") !== (initial.info ?? "") ||
-    input.body !== initial.body;
+    input.body !== initial.body ||
+    photosChanged(initialItems, photos);
+  const openIndex = photos.findIndex((p) => p.key === openKey);
+
+  function addFiles(files: File[]) {
+    const problem = checkFiles(files, photos.length);
+    setPhotoError(problem);
+    if (problem) {
+      return;
+    }
+    const added: PhotoItem[] = files.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      previews.current.add(previewUrl);
+      return { key: previewUrl, kind: "added", file, previewUrl, alt: null };
+    });
+    setPhotos((prev) => [...prev, ...added]);
+  }
+
+  function updateOpen(change: (item: PhotoItem) => PhotoItem | null) {
+    setPhotos((prev) =>
+      prev.flatMap((p) => {
+        if (p.key !== openKey) {
+          return [p];
+        }
+        const next = change(p);
+        return next ? [next] : [];
+      }),
+    );
+  }
   // 本文は空白以外の文字が1文字以上（\s は全角スペースも含む）
   const canSave = /\S/.test(input.body) && !saving;
   const closeHref = diaryId
@@ -63,14 +118,24 @@ export default function DiaryEditor({
       ...input,
       info: input.info?.trim() ? input.info : null,
     };
+    let id: string;
     try {
       const { diary } = diaryId
         ? await updateDiary(diaryId, body)
         : await createDiary(body);
-      router.replace(`/diaries/${diary.id}`);
+      id = diary.id;
     } catch {
       setSaving(false);
       setSaveError(true);
+      return;
+    }
+    try {
+      await savePhotos(id, initialItems, photos);
+      router.replace(`/diaries/${id}`);
+    } catch {
+      // 日記は保存できている。写真は途中まで反映されているかもしれないので、
+      // 詳細画面で実際に保存された状態を見せる
+      router.replace(`/diaries/${id}?photoError=1`);
     }
   }
 
@@ -89,7 +154,8 @@ export default function DiaryEditor({
           type="button"
           aria-label="閉じる"
           onClick={handleClose}
-          className="flex size-10 items-center justify-center rounded-full text-text-primary hover:bg-surface"
+          disabled={saving}
+          className="flex size-10 items-center justify-center rounded-full text-text-primary hover:bg-surface disabled:opacity-40"
         >
           <XIcon />
         </button>
@@ -99,7 +165,7 @@ export default function DiaryEditor({
           disabled={!canSave}
           className="h-9 rounded-full bg-text-primary px-[18px] text-[15px] font-bold text-on-primary disabled:opacity-40"
         >
-          保存
+          {saving ? "保存中…" : "保存"}
         </button>
       </div>
 
@@ -135,12 +201,51 @@ export default function DiaryEditor({
         />
       </div>
 
+      <PhotoStrip items={photos} onReorder={setPhotos} onOpen={setOpenKey} />
+      {photoError ? (
+        <p role="alert" className="px-6 pb-2 text-sm text-danger lg:px-0">
+          {photoError}
+        </p>
+      ) : null}
+
       <div className="sticky bottom-0 flex h-12 items-center gap-1 border-t border-border bg-surface px-4">
+        <button
+          type="button"
+          aria-label="写真を追加"
+          disabled={photos.length >= maxPhotos}
+          onClick={() => fileInput.current?.click()}
+          className="flex size-10 items-center justify-center rounded-full text-text-primary hover:bg-bg disabled:opacity-40"
+        >
+          <ImagePlusIcon />
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept={acceptedTypes.join(",")}
+          multiple
+          hidden
+          onChange={(e) => {
+            addFiles(Array.from(e.target.files ?? []));
+            e.target.value = "";
+          }}
+        />
         <span className="flex-1" />
         <span className="text-xs text-text-secondary">
           {countChars(input.body)}文字
         </span>
       </div>
+
+      <PhotoSheet
+        item={openIndex >= 0 ? photos[openIndex] : null}
+        index={openIndex}
+        total={photos.length}
+        onChangeAlt={(alt) => updateOpen((p) => ({ ...p, alt }))}
+        onDelete={() => {
+          updateOpen(() => null);
+          setOpenKey(null);
+        }}
+        onClose={() => setOpenKey(null)}
+      />
 
       <ConfirmDialog
         open={confirmingDiscard}
