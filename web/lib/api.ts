@@ -23,13 +23,12 @@ export type User = {
 };
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${basePath}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
-  });
+  // FormData のときは、ブラウザが multipart の区切りつきの Content-Type を付ける
+  const headers: HeadersInit =
+    init.body instanceof FormData
+      ? { ...init.headers }
+      : { "Content-Type": "application/json", ...init.headers };
+  const res = await fetch(`${basePath}${path}`, { ...init, headers });
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -67,4 +66,78 @@ export function me() {
 
 export function logout() {
   return request<void>("/logout", { method: "POST" });
+}
+
+export type MealType = "BREAKFAST" | "LUNCH" | "DINNER" | "OTHER";
+
+export type Diary = {
+  id: string;
+  eaten_on: string;
+  status: MealType;
+  info: string | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Photo = {
+  id: string;
+  url: string;
+  alt: string | null;
+  position: number;
+};
+
+export type DiaryDetail = Diary & { photos: Photo[] };
+
+export type DiaryListItem = Diary & { thumbnail_url: string | null };
+
+export type CalendarDay = {
+  date: string;
+  diary_count: number;
+  thumbnail_url: string | null;
+};
+
+// month は YYYY-MM
+export function getCalendar(month: string) {
+  return request<{ month: string; days: CalendarDay[] }>(
+    `/calendar?month=${encodeURIComponent(month)}`,
+  );
+}
+
+// date は YYYY-MM-DD
+export function listDiaries(date: string) {
+  return request<{ date: string; diaries: DiaryListItem[] }>(
+    `/diaries?date=${encodeURIComponent(date)}`,
+  );
+}
+
+export function getDiary(id: string) {
+  return request<{ diary: DiaryDetail }>(`/diaries/${encodeURIComponent(id)}`);
+}
+
+export type DiaryInput = {
+  eaten_on: string;
+  status: MealType;
+  info: string | null;
+  body: string;
+};
+
+export function createDiary(input: DiaryInput) {
+  return request<{ diary: Diary }>("/diaries", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateDiary(id: string, input: Partial<DiaryInput>) {
+  return request<{ diary: Diary }>(`/diaries/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteDiary(id: string) {
+  return request<void>(`/diaries/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }
