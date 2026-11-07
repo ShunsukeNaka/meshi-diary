@@ -66,6 +66,11 @@ export function monthOf(date: string): string {
   return date.slice(0, 7);
 }
 
+// カレンダーで、date の月と日を選んだ状態の URL
+export function calendarHref(date: string): string {
+  return `/?month=${monthOf(date)}&date=${date}`;
+}
+
 export function addMonths(month: string, n: number): string {
   const [y, m] = month.split("-").map(Number);
   const t = new Date(Date.UTC(y, m - 1 + n, 1));

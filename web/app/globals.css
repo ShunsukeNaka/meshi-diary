@@ -9,6 +9,7 @@
   --text-primary: #18181b;
   --text-secondary: #71717a;
   --on-primary: #ffffff;
+  --danger: #dc2626;
 }
 
 /* next/font の変数は --next-font-* にして、Tailwind の --font-* と名前がぶつからないようにする */
@@ -20,6 +21,7 @@
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-on-primary: var(--on-primary);
+  --color-danger: var(--danger);
   --radius-app: 12px;
   --font-sans: var(--next-font-noto-sans-jp), sans-serif;
   --font-inter: var(--next-font-inter), var(--next-font-noto-sans-jp), sans-serif;
