@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import GoogleLogin from "./google-login";
 
 export const metadata: Metadata = {
   title: "ログイン | meshi-diary",
@@ -17,10 +18,7 @@ export default function LoginPage() {
           誰かとご飯を食べたときの日記
         </p>
       </div>
-      {/* Google でログインするボタンは次の PR で置く */}
-      <p className="text-center text-xs text-text-secondary">
-        初めての方も同じボタンから登録できます
-      </p>
+      <GoogleLogin />
     </main>
   );
 }
