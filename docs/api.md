@@ -98,6 +98,7 @@ designDoc「7.4 API 設計」の詳細。DB のテーブル定義は [table.md](
 | `PATCH` | `/diaries/{id}` | 日記を編集する | 要 |
 | `DELETE` | `/diaries/{id}` | 日記を削除する | 要 |
 | `GET` | `/diaries?date=` | 選んだ日の日記の一覧 | 要 |
+| `POST` | `/diaries/{id}/photos` | 写真を追加する | 要 |
 | `GET` | `/calendar` | カレンダーの月の日記 | 要 |
 | `GET` | `/health` | 死活確認 | 不要 |
 
@@ -705,6 +706,91 @@ Google アカウントを users に登録し、そのままログインした状
 #### 備考
 
 - 自分の日記だけを返す
+
+---
+
+### `POST /diaries/{id}/photos` — 写真を追加する
+
+日記に写真を追加する。複数枚をまとめて送れる。日記の編集画面の「保存」で、新しく選んだ写真があるときに呼ぶ。
+
+- 認証: 要
+
+#### パスパラメータ
+
+| 名前 | 型 | 説明 |
+| --- | --- | --- |
+| id | `uuid` | 日記の id |
+
+#### クエリパラメータ
+
+なし
+
+#### リクエストボディ
+
+`Content-Type: multipart/form-data`
+
+| フィールド | 型 | 必須 | 説明・制約 |
+| --- | --- | --- | --- |
+| photos | ファイル | ○ | 写真。1つ以上、同じ名前で複数送れる。JPEG・PNG・WebP。1枚 10 MB まで |
+| alts | `string` | | 写真の説明。送るときは `photos` と同じ数・同じ順番で送る。空文字は説明なし |
+
+```
+photos=@lunch.jpg
+photos=@ramen.jpg
+alts=
+alts=替え玉は硬めで。
+```
+
+#### レスポンス
+
+`201 Created`。追加したあとの、日記の写真すべてを表示順で返す。
+
+| フィールド | 型 | 説明 |
+| --- | --- | --- |
+| photos | `photo[]` | 形は `GET /diaries/{id}` の `photos` と同じ |
+
+```json
+{
+  "photos": [
+    {
+      "id": "9d8c7b6a-5f4e-4d3c-2b1a-0f9e8d7c6b5a",
+      "url": "https://<R2 の署名付き URL>",
+      "alt": null,
+      "position": 0
+    },
+    {
+      "id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+      "url": "https://<R2 の署名付き URL>",
+      "alt": "替え玉は硬めで。",
+      "position": 1
+    }
+  ]
+}
+```
+
+#### エラー
+
+どれか1枚でもエラーになったときは、1枚も追加しない。
+
+| ステータス | code | 返す条件 |
+| --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `multipart/form-data` として読めない、`photos` がない、`alts` の数が `photos` と違う |
+| 404 | `NOT_FOUND` | 日記がない、ほかのユーザーの日記、または `id` が UUID の形ではない |
+| 409 | `CONFLICT` | 追加すると、日記の写真が10枚を超える |
+| 413 | `PAYLOAD_TOO_LARGE` | 10 MB を超える写真がある |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | JPEG・PNG・WebP ではない、壊れている、または縦か横が 16383 px を超える写真がある |
+
+#### 備考
+
+- 写真は WebP にして R2 に保存する（キーは `photos/{diary_id}/{photo_id}.webp`）。縦横の大きさは変えない
+- JPEG の EXIF の向きは、画素を回転させて反映する。EXIF（撮影場所なども含む）は保存しない
+- 追加した写真は、今ある写真のうしろに、送った順に並べる
+- 処理の順番
+  1. 枚数・大きさ・形式を確かめる
+  2. すべての写真を WebP にして、R2 に保存する
+  3. photos に1つのトランザクションでまとめて INSERT する
+  4. 2 か 3 で失敗したら、R2 に保存したファイルを消してエラーを返す
+- フロントエンドからは Vercel の中継を通るので、リクエスト全体が 120 秒以内に終わる必要がある（Vercel の上限）
 
 ---
 
