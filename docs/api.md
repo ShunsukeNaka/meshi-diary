@@ -94,6 +94,7 @@ designDoc「7.4 API 設計」の詳細。DB のテーブル定義は [table.md](
 | `GET` | `/me` | ログイン中のユーザー | 要 |
 | `POST` | `/logout` | ログアウト | 不要 |
 | `POST` | `/diaries` | 日記を作る | 要 |
+| `GET` | `/diaries/{id}` | 日記の詳細 | 要 |
 | `GET` | `/health` | 死活確認 | 不要 |
 
 ## エンドポイント詳細
@@ -392,6 +393,80 @@ Google アカウントを users に登録し、そのままログインした状
 - 本文に文字数の制限はないが、リクエストボディは 1 MB までにする
 - 同じ日に何件でも作れる（昼と夜など）
 - 写真は、日記を作ったあとに別のエンドポイントで追加する
+
+---
+
+### `GET /diaries/{id}` — 日記の詳細
+
+日記1件と、その写真を返す。日記の詳細画面と、編集画面を開いたときに呼ぶ。
+
+- 認証: 要
+
+#### パスパラメータ
+
+| 名前 | 型 | 説明 |
+| --- | --- | --- |
+| id | `uuid` | 日記の id |
+
+#### クエリパラメータ
+
+なし
+
+#### リクエストボディ
+
+なし
+
+#### レスポンス
+
+`200 OK`
+
+| フィールド | 型 | 説明 |
+| --- | --- | --- |
+| diary.id | `uuid` | |
+| diary.eaten_on | `date` | |
+| diary.status | `enum` | `BREAKFAST`・`LUNCH`・`DINNER`・`OTHER` |
+| diary.info | `string \| null` | |
+| diary.body | `string` | |
+| diary.created_at | `datetime` | |
+| diary.updated_at | `datetime` | |
+| diary.photos | `photo[]` | 表示順（`position` の小さい順）。写真がないときは `[]` |
+| diary.photos[].id | `uuid` | |
+| diary.photos[].url | `string` | 表示用の署名付き URL。1時間で切れる |
+| diary.photos[].alt | `string \| null` | 写真の説明 |
+| diary.photos[].position | `integer` | 表示順（0 始まり） |
+
+```json
+{
+  "diary": {
+    "id": "5c2a9f7e-1b3d-4e6f-8a9b-0c1d2e3f4a5b",
+    "eaten_on": "2026-11-06",
+    "status": "LUNCH",
+    "info": "駅前のラーメン屋",
+    "body": "久しぶりに会って、仕事の話をした。",
+    "created_at": "2026-11-06T12:30:00+09:00",
+    "updated_at": "2026-11-06T12:30:00+09:00",
+    "photos": [
+      {
+        "id": "9d8c7b6a-5f4e-4d3c-2b1a-0f9e8d7c6b5a",
+        "url": "https://<R2 の署名付き URL>",
+        "alt": "替え玉は硬めで。",
+        "position": 0
+      }
+    ]
+  }
+}
+```
+
+#### エラー
+
+| ステータス | code | 返す条件 |
+| --- | --- | --- |
+| 404 | `NOT_FOUND` | 日記がない、ほかのユーザーの日記、または `id` が UUID の形ではない |
+
+#### 備考
+
+- 写真の `url` は R2 の署名付き URL。期限が切れたら、もう一度このエンドポイントを呼んで取り直す
+- `url` は呼ぶたびに変わるので、フロントエンドは写真を `id` で見分ける
 
 ---
 
