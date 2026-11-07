@@ -1,26 +1,31 @@
 @import "tailwindcss";
 
+/* docs/v2.pen の変数に合わせる */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #ffffff;
+  --surface: #f4f4f5;
+  --placeholder: #e4e4e7;
+  --border: #d4d4d8;
+  --text-primary: #18181b;
+  --text-secondary: #71717a;
+  --on-primary: #ffffff;
 }
 
+/* next/font の変数は --next-font-* にして、Tailwind の --font-* と名前がぶつからないようにする */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-placeholder: var(--placeholder);
+  --color-border: var(--border);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-on-primary: var(--on-primary);
+  --radius-app: 12px;
+  --font-sans: var(--next-font-noto-sans-jp), sans-serif;
+  --font-inter: var(--next-font-inter), var(--next-font-noto-sans-jp), sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
 }
