@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -56,4 +57,55 @@ func TestPhotos(t *testing.T) {
 			t.Fatalf("no ids: %v, %v", empty, err)
 		}
 	})
+	t.Run("AddMany appends photos after the existing ones", func(t *testing.T) {
+		diary := createTestDiary(t, tx, user.ID, "2026-11-09", MealTypeLunch)
+		existing := createTestPhoto(t, tx, diary.ID, 0)
+		alt := "説明"
+		added := []Photo{newTestPhoto(diary.ID, nil), newTestPhoto(diary.ID, &alt)}
+		if err := photos.AddMany(ctx, diary.ID, added); err != nil {
+			t.Fatal(err)
+		}
+		got, err := photos.ListByDiary(ctx, diary.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 3 || got[0].ID != existing.ID || got[1].ID != added[0].ID || got[2].ID != added[1].ID {
+			t.Fatalf("got %+v", got)
+		}
+		if got[2].Position != 2 || got[2].Alt == nil || *got[2].Alt != alt {
+			t.Fatalf("third = %+v", got[2])
+		}
+	})
+
+	t.Run("AddMany rejects more than 10 photos and adds none", func(t *testing.T) {
+		diary := createTestDiary(t, tx, user.ID, "2026-11-10", MealTypeLunch)
+		for i := 0; i < 8; i++ {
+			createTestPhoto(t, tx, diary.ID, i)
+		}
+		tx.SavePoint("too_many")
+		err := photos.AddMany(ctx, diary.ID, []Photo{newTestPhoto(diary.ID, nil), newTestPhoto(diary.ID, nil), newTestPhoto(diary.ID, nil)})
+		tx.RollbackTo("too_many")
+		if !errors.Is(err, ErrTooManyPhotos) {
+			t.Fatalf("err = %v, want ErrTooManyPhotos", err)
+		}
+		if got, _ := photos.ListByDiary(ctx, diary.ID); len(got) != 8 {
+			t.Fatalf("photos = %d, want 8", len(got))
+		}
+		// ちょうど10枚までは追加できる
+		if err := photos.AddMany(ctx, diary.ID, []Photo{newTestPhoto(diary.ID, nil), newTestPhoto(diary.ID, nil)}); err != nil {
+			t.Fatalf("add up to 10: %v", err)
+		}
+	})
+
+	t.Run("AddMany to an unknown diary is ErrNotFound", func(t *testing.T) {
+		id := uuid.New()
+		if err := photos.AddMany(ctx, id, []Photo{newTestPhoto(id, nil)}); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("err = %v, want ErrNotFound", err)
+		}
+	})
+}
+
+func newTestPhoto(diaryID uuid.UUID, alt *string) Photo {
+	id := uuid.New()
+	return Photo{ID: id, ObjectKey: "photos/" + diaryID.String() + "/" + id.String() + ".webp", Alt: alt}
 }
