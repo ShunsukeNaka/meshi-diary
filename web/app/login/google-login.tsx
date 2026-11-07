@@ -1,18 +1,34 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
+import { ApiError, login, signup } from "@/lib/api";
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 // GIS のボタンの幅の上限（px）
 const maxButtonWidth = 400;
 
+type Status =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; message: string };
+
 const defaultNote = "初めての方も同じボタンから登録できます";
 
 export default function GoogleLogin() {
+  const router = useRouter();
   const buttonRef = useRef<HTMLDivElement>(null);
   const [gisReady, setGisReady] = useState(false);
+  const [status, setStatus] = useState<Status>(
+    clientId
+      ? { kind: "idle" }
+      : {
+          kind: "error",
+          message: "NEXT_PUBLIC_GOOGLE_CLIENT_ID が設定されていません",
+        },
+  );
 
   useEffect(() => {
     const parent = buttonRef.current;
@@ -20,10 +36,30 @@ export default function GoogleLogin() {
       return;
     }
 
+    // まず /login を呼び、未登録（404）なら /signup で登録する
+    async function handleCredential({
+      credential,
+    }: google.accounts.id.CredentialResponse) {
+      setStatus({ kind: "loading" });
+      try {
+        try {
+          await login(credential);
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 404) {
+            await signup(credential);
+          } else {
+            throw e;
+          }
+        }
+        router.replace("/");
+      } catch (e) {
+        setStatus({ kind: "error", message: errorMessage(e) });
+      }
+    }
+
     google.accounts.id.initialize({
       client_id: clientId,
-      // 受け取った ID トークンで API を呼ぶ処理は、次の PR で作る
-      callback: () => {},
+      callback: handleCredential,
     });
     google.accounts.id.renderButton(parent, {
       type: "standard",
@@ -35,7 +71,7 @@ export default function GoogleLogin() {
       width: Math.min(parent.clientWidth, maxButtonWidth),
       locale: "ja",
     });
-  }, [gisReady]);
+  }, [gisReady, router]);
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -48,11 +84,24 @@ export default function GoogleLogin() {
         ref={buttonRef}
         className="flex h-[52px] w-full items-center justify-center"
       />
-      <p className="text-center text-xs text-text-secondary">
-        {clientId
-          ? defaultNote
-          : "NEXT_PUBLIC_GOOGLE_CLIENT_ID が設定されていません"}
+      <p
+        role={status.kind === "error" ? "alert" : undefined}
+        aria-live="polite"
+        className={`text-center text-xs ${
+          status.kind === "error" ? "text-text-primary" : "text-text-secondary"
+        }`}
+      >
+        {status.kind === "idle" && defaultNote}
+        {status.kind === "loading" && "ログインしています…"}
+        {status.kind === "error" && status.message}
       </p>
     </div>
   );
+}
+
+function errorMessage(e: unknown): string {
+  if (e instanceof ApiError && e.status === 403) {
+    return "このアカウントは使えません";
+  }
+  return "ログインできませんでした。時間をおいてもう一度お試しください";
 }
