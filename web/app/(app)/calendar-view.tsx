@@ -18,6 +18,7 @@ import {
 import { useFetch } from "@/lib/use-fetch";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import RemoteImage from "@/components/remote-image";
+import LogoutButton from "./logout-button";
 
 // 表示している月と選んだ日は URL（?month=YYYY-MM&date=YYYY-MM-DD）に持つ。
 // 詳細画面から戻ったときに、同じ月と日に戻れるようにするため。
@@ -38,29 +39,38 @@ export default function CalendarView() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[480px] flex-1 flex-col gap-5 px-4 pt-2 pb-6 lg:max-w-[1280px] lg:flex-row lg:gap-12 lg:px-8 lg:pt-6">
-      <section className="flex flex-col gap-5 lg:flex-1">
-        <MonthHeader
-          month={month}
-          onPrev={() => setView({ month: addMonths(month, -1) })}
-          onNext={() => setView({ month: addMonths(month, 1) })}
-        />
-        <MonthGrid
-          month={month}
-          selected={date}
-          onSelect={(d) => setView({ date: d })}
-        />
-      </section>
-      <section className="flex flex-col gap-5 lg:w-[380px] lg:pt-[60px]">
-        <DayEntries date={date} />
-        <Link
-          href={`/diaries/new?date=${date}`}
-          className="flex h-[52px] items-center justify-center rounded-app bg-text-primary px-5 text-base font-bold text-on-primary"
-        >
-          日記を書く
-        </Link>
-      </section>
-    </main>
+    <>
+      {/* PC だけのトップバー。スマホでは月の切り替えの右にログアウトを置く */}
+      <header className="hidden w-full items-center justify-between px-8 py-5 lg:flex">
+        <span className="font-inter text-lg font-bold text-text-primary">
+          meshi-diary
+        </span>
+        <LogoutButton withLabel />
+      </header>
+      <main className="mx-auto flex w-full max-w-[480px] flex-1 flex-col gap-5 px-4 pt-2 pb-6 lg:max-w-[1280px] lg:flex-row lg:gap-12 lg:px-8 lg:pt-2">
+        <section className="flex flex-col gap-5 lg:flex-1">
+          <MonthHeader
+            month={month}
+            onPrev={() => setView({ month: addMonths(month, -1) })}
+            onNext={() => setView({ month: addMonths(month, 1) })}
+          />
+          <MonthGrid
+            month={month}
+            selected={date}
+            onSelect={(d) => setView({ date: d })}
+          />
+        </section>
+        <section className="flex flex-col gap-5 lg:w-[380px] lg:pt-[60px]">
+          <DayEntries date={date} />
+          <Link
+            href={`/diaries/new?date=${date}`}
+            className="flex h-[52px] items-center justify-center rounded-app bg-text-primary px-5 text-base font-bold text-on-primary"
+          >
+            日記を書く
+          </Link>
+        </section>
+      </main>
+    </>
   );
 }
 
@@ -85,6 +95,10 @@ function MonthHeader({
         <IconButton label="次の月" onClick={onNext}>
           <ChevronRightIcon />
         </IconButton>
+        <span className="mx-1 h-5 w-px bg-border lg:hidden" />
+        <span className="lg:hidden">
+          <LogoutButton />
+        </span>
       </div>
     </div>
   );
