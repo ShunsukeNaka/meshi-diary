@@ -30,6 +30,8 @@ type DiaryRepository interface {
 	Delete(ctx context.Context, userID, id uuid.UUID) error
 	// ListBetween は食事をした日が from 以上 to 未満の日記を、日付の古い順・同じ日は作った順に返す。
 	ListBetween(ctx context.Context, userID uuid.UUID, from, to time.Time) ([]postgres.Diary, error)
+	// ListByDate は date の日記を、食事の区分の順・同じ区分の中は作った順に返す。
+	ListByDate(ctx context.Context, userID uuid.UUID, date time.Time) ([]postgres.Diary, error)
 }
 
 type createDiaryRequest struct {
@@ -162,6 +164,53 @@ func UpdateDiary(d Deps) http.HandlerFunc {
 			return
 		}
 		httpx.WriteJSON(w, http.StatusOK, map[string]diaryResponse{"diary": newDiaryResponse(diary)})
+	}
+}
+
+// diaryListItem は一覧の日記（docs/api.md の GET /diaries の diaries[]）。
+type diaryListItem struct {
+	diaryResponse
+	ThumbnailURL *string `json:"thumbnail_url"`
+}
+
+type diaryListResponse struct {
+	Date    string          `json:"date"`
+	Diaries []diaryListItem `json:"diaries"`
+}
+
+// ListDiaries は指定した日の日記を、サムネイルと一緒に返す（docs/api.md の GET /diaries）。Sessions.RequireSession で包んで使う。
+func ListDiaries(d Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := auth.UserID(r.Context())
+		if !ok {
+			httpx.WriteError(w, http.StatusUnauthorized, httpx.CodeUnauthorized, "ログインしてください")
+			return
+		}
+		date, ok := parseEatenOn(r.URL.Query().Get("date"))
+		if !ok {
+			writeValidationError(w, "date は YYYY-MM-DD の形の日付にしてください")
+			return
+		}
+
+		diaries, err := d.Diaries.ListByDate(r.Context(), userID, date)
+		if err != nil {
+			httpx.WriteInternalError(w, err)
+			return
+		}
+		thumbnails, err := thumbnailURLs(r, d, diaries)
+		if err != nil {
+			httpx.WriteInternalError(w, err)
+			return
+		}
+
+		items := make([]diaryListItem, len(diaries))
+		for i, diary := range diaries {
+			items[i] = diaryListItem{diaryResponse: newDiaryResponse(diary)}
+			if url, ok := thumbnails[diary.ID]; ok {
+				items[i].ThumbnailURL = &url
+			}
+		}
+		httpx.WriteJSON(w, http.StatusOK, diaryListResponse{Date: date.Format(time.DateOnly), Diaries: items})
 	}
 }
 

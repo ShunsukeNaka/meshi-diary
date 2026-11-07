@@ -99,6 +99,31 @@ func (f *fakeDiaries) ListBetween(_ context.Context, userID uuid.UUID, from, to 
 	return diaries, nil
 }
 
+// mealOrder は enum meal_type の定義順。ListByDate の並び順の再現に使う。
+var mealOrder = map[postgres.MealType]int{
+	postgres.MealTypeBreakfast: 0, postgres.MealTypeLunch: 1, postgres.MealTypeDinner: 2, postgres.MealTypeOther: 3,
+}
+
+func (f *fakeDiaries) ListByDate(_ context.Context, userID uuid.UUID, date time.Time) ([]postgres.Diary, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	diaries := []postgres.Diary{}
+	for _, d := range f.byID {
+		if d.UserID == userID && d.EatenOn.Equal(date) {
+			diaries = append(diaries, d)
+		}
+	}
+	sort.Slice(diaries, func(i, j int) bool {
+		a, b := diaries[i], diaries[j]
+		if a.Status != b.Status {
+			return mealOrder[a.Status] < mealOrder[b.Status]
+		}
+		return a.CreatedAt.Before(b.CreatedAt)
+	})
+	return diaries, nil
+}
+
 func (f *fakeDiaries) add(d postgres.Diary) {
 	if f.byID == nil {
 		f.byID = map[uuid.UUID]postgres.Diary{}
