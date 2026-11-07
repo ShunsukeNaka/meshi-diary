@@ -33,6 +33,8 @@ type PhotoRepository interface {
 	UpdateAlt(ctx context.Context, diaryID, photoID uuid.UUID, alt *string) (postgres.Photo, error)
 	// Delete は写真を削除して position を詰め、削除した写真を返す。ないときは postgres.ErrNotFound を返す。
 	Delete(ctx context.Context, diaryID, photoID uuid.UUID) (postgres.Photo, error)
+	// Reorder は position を photoIDs の順に入れ直す。日記の写真と組み合わせが違うときは postgres.ErrInvalidOrder を返す。
+	Reorder(ctx context.Context, diaryID uuid.UUID, photoIDs []uuid.UUID) error
 }
 
 // photoResponse はレスポンスの写真（docs/api.md の photos[]）。

@@ -39,5 +39,6 @@ func NewRouter(d Deps) http.Handler {
 	mux.Handle("POST /diaries/{id}/photos", d.Sessions.RequireSession(AddPhotos(d)))
 	mux.Handle("PATCH /diaries/{id}/photos/{photoId}", d.Sessions.RequireSession(UpdatePhoto(d)))
 	mux.Handle("DELETE /diaries/{id}/photos/{photoId}", d.Sessions.RequireSession(DeletePhoto(d)))
+	mux.Handle("PUT /diaries/{id}/photos/order", d.Sessions.RequireSession(ReorderPhotos(d)))
 	return mux
 }

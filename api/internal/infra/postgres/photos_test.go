@@ -154,6 +154,39 @@ func TestPhotos(t *testing.T) {
 			t.Fatalf("delete again: err = %v, want ErrNotFound", err)
 		}
 	})
+	t.Run("Reorder", func(t *testing.T) {
+		diary := createTestDiary(t, tx, user.ID, "2026-11-13", MealTypeLunch)
+		p0 := createTestPhoto(t, tx, diary.ID, 0)
+		p1 := createTestPhoto(t, tx, diary.ID, 1)
+		p2 := createTestPhoto(t, tx, diary.ID, 2)
+
+		if err := photos.Reorder(ctx, diary.ID, []uuid.UUID{p2.ID, p0.ID, p1.ID}); err != nil {
+			t.Fatal(err)
+		}
+		if err := tx.Exec("SET CONSTRAINTS ALL IMMEDIATE").Error; err != nil {
+			t.Fatalf("unique check: %v", err)
+		}
+		tx.Exec("SET CONSTRAINTS ALL DEFERRED")
+		got, _ := photos.ListByDiary(ctx, diary.ID)
+		if len(got) != 3 || got[0].ID != p2.ID || got[1].ID != p0.ID || got[2].ID != p1.ID {
+			t.Fatalf("got %+v", got)
+		}
+
+		other := createTestPhoto(t, tx, createTestDiary(t, tx, user.ID, "2026-11-13", MealTypeDinner).ID, 0)
+		for name, ids := range map[string][]uuid.UUID{
+			"missing":         {p0.ID, p1.ID},
+			"extra":           {p0.ID, p1.ID, p2.ID, uuid.New()},
+			"duplicate":       {p0.ID, p0.ID, p1.ID},
+			"another diary's": {p0.ID, p1.ID, other.ID},
+		} {
+			if err := photos.Reorder(ctx, diary.ID, ids); !errors.Is(err, ErrInvalidOrder) {
+				t.Fatalf("%s: err = %v, want ErrInvalidOrder", name, err)
+			}
+		}
+		if got, _ := photos.ListByDiary(ctx, diary.ID); got[0].ID != p2.ID {
+			t.Fatal("order changed after an invalid request")
+		}
+	})
 }
 
 func newTestPhoto(diaryID uuid.UUID, alt *string) Photo {
