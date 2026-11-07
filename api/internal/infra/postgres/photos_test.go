@@ -103,6 +103,25 @@ func TestPhotos(t *testing.T) {
 			t.Fatalf("err = %v, want ErrNotFound", err)
 		}
 	})
+	t.Run("UpdateAlt", func(t *testing.T) {
+		diary := createTestDiary(t, tx, user.ID, "2026-11-11", MealTypeLunch)
+		photo := createTestPhoto(t, tx, diary.ID, 0)
+		alt := "説明"
+		got, err := photos.UpdateAlt(ctx, diary.ID, photo.ID, &alt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.ID != photo.ID || got.Alt == nil || *got.Alt != alt {
+			t.Fatalf("got %+v", got)
+		}
+		if got, err = photos.UpdateAlt(ctx, diary.ID, photo.ID, nil); err != nil || got.Alt != nil {
+			t.Fatalf("clear: %+v, %v", got, err)
+		}
+		otherDiary := createTestDiary(t, tx, user.ID, "2026-11-11", MealTypeDinner)
+		if _, err := photos.UpdateAlt(ctx, otherDiary.ID, photo.ID, &alt); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("other diary: err = %v, want ErrNotFound", err)
+		}
+	})
 }
 
 func newTestPhoto(diaryID uuid.UUID, alt *string) Photo {
