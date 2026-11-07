@@ -34,5 +34,6 @@ func NewRouter(d Deps) http.Handler {
 	mux.Handle("GET /diaries/{id}", d.Sessions.RequireSession(GetDiary(d)))
 	mux.Handle("PATCH /diaries/{id}", d.Sessions.RequireSession(UpdateDiary(d)))
 	mux.Handle("DELETE /diaries/{id}", d.Sessions.RequireSession(DeleteDiary(d)))
+	mux.Handle("GET /calendar", d.Sessions.RequireSession(Calendar(d)))
 	return mux
 }
