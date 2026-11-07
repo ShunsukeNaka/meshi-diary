@@ -97,6 +97,7 @@ designDoc「7.4 API 設計」の詳細。DB のテーブル定義は [table.md](
 | `GET` | `/diaries/{id}` | 日記の詳細 | 要 |
 | `PATCH` | `/diaries/{id}` | 日記を編集する | 要 |
 | `DELETE` | `/diaries/{id}` | 日記を削除する | 要 |
+| `GET` | `/diaries?date=` | 選んだ日の日記の一覧 | 要 |
 | `GET` | `/calendar` | カレンダーの月の日記 | 要 |
 | `GET` | `/health` | 死活確認 | 不要 |
 
@@ -637,6 +638,73 @@ Google アカウントを users に登録し、そのままログインした状
 
 - サムネイルは、その日の日記を作った順に見て、写真がある最初の日記の1枚目（`position = 0`）
 - 日記がない日は `days` に入れない。フロントエンドは `days` にない日を、日記がない日として表示する
+
+---
+
+### `GET /diaries` — 選んだ日の日記の一覧
+
+指定した日の日記を、食事の区分の順に返す。カレンダー画面で日付を選んだときに呼ぶ。
+
+- 認証: 要
+
+#### パスパラメータ
+
+なし
+
+#### クエリパラメータ
+
+| 名前 | 型 | 必須 | 説明 |
+| --- | --- | --- | --- |
+| date | `date` | ○ | 食事をした日（`YYYY-MM-DD`） |
+
+#### リクエストボディ
+
+なし
+
+#### レスポンス
+
+`200 OK`
+
+| フィールド | 型 | 説明 |
+| --- | --- | --- |
+| date | `date` | 指定した日 |
+| diaries | `diary[]` | 朝食・昼食・夕食・その他の順。同じ区分の中は作った順。日記がないときは `[]` |
+| diaries[].id | `uuid` | |
+| diaries[].eaten_on | `date` | |
+| diaries[].status | `enum` | |
+| diaries[].info | `string \| null` | |
+| diaries[].body | `string` | 本文の全文。一覧での省略はフロントエンドで行う |
+| diaries[].created_at | `datetime` | |
+| diaries[].updated_at | `datetime` | |
+| diaries[].thumbnail_url | `string \| null` | 1枚目の写真の署名付き URL（1時間で切れる）。写真がないときは `null` |
+
+```json
+{
+  "date": "2026-11-06",
+  "diaries": [
+    {
+      "id": "5c2a9f7e-1b3d-4e6f-8a9b-0c1d2e3f4a5b",
+      "eaten_on": "2026-11-06",
+      "status": "LUNCH",
+      "info": "駅前のラーメン屋",
+      "body": "研究室のみんなで新しくできたお店へ。",
+      "created_at": "2026-11-06T12:30:00+09:00",
+      "updated_at": "2026-11-06T12:30:00+09:00",
+      "thumbnail_url": "https://<R2 の署名付き URL>"
+    }
+  ]
+}
+```
+
+#### エラー
+
+| ステータス | code | 返す条件 |
+| --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | `date` がない、または `YYYY-MM-DD` の形の正しい日付ではない |
+
+#### 備考
+
+- 自分の日記だけを返す
 
 ---
 
