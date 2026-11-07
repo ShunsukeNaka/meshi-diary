@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
-import { ApiError, login, signup } from "@/lib/api";
+import { ApiError, login, me, signup } from "@/lib/api";
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
@@ -29,6 +29,22 @@ export default function GoogleLogin() {
           message: "NEXT_PUBLIC_GOOGLE_CLIENT_ID が設定されていません",
         },
   );
+
+  // ログイン中なら、ログイン画面を開いてもカレンダーに移動する
+  useEffect(() => {
+    let ignore = false;
+    me()
+      .then(() => {
+        if (!ignore) {
+          router.replace("/");
+        }
+      })
+      // 未ログイン（401）やエラーのときは、そのままログイン画面を出す
+      .catch(() => {});
+    return () => {
+      ignore = true;
+    };
+  }, [router]);
 
   useEffect(() => {
     const parent = buttonRef.current;
