@@ -11,6 +11,11 @@ designDoc「7.4 API 設計」の詳細。DB のテーブル定義は [table.md](
 | ローカル | `http://localhost:8080` |
 | 本番 | `https://<サーバーのドメイン>/meshi-diary-api` |
 
+- フロントエンドからは、上の URL を直接呼ばない。フロントエンド（Vercel）の `/meshi-diary-api/*` に送り、Vercel が上の URL に中継する（`web/next.config.ts` の `rewrites`）
+  - 例: フロントエンドの `/meshi-diary-api/login` → API の `/login`
+  - 中継する先は、フロントエンドの環境変数 `API_BASE_URL` で決める（ローカルは `http://localhost:8080`、本番は上の URL）
+- フロントエンドと API は同じサイトのドメインに置けないため、中継してブラウザからは同じオリジンへのリクエストにしている（理由は「セッション Cookie」を参照）
+
 ### 認証
 
 - 方式: フロントエンドが Google でログインして ID トークンを受け取り、`POST /signup` か `POST /login` に送る。API は ID トークンを検証し、セッション Cookie を発行する
@@ -27,8 +32,10 @@ designDoc「7.4 API 設計」の詳細。DB のテーブル定義は [table.md](
 | 属性 | `HttpOnly; Secure; SameSite=Lax; Path=/`（本番では Apache が `Path=/meshi-diary-api/` に書き換える） |
 | 有効期限 | 30 日（`Max-Age=2592000`） |
 
-- **前提**: フロントエンドと API を同じサイトのドメインに置く（例: `meshi.example.com` と `api.meshi.example.com`）。ドメインのサイトが違うと Cookie がサードパーティ Cookie 扱いになり、ブラウザによっては送られない
-- オリジンは違うので CORS は必要。`Access-Control-Allow-Origin` にフロントエンドのオリジンを指定し、`Access-Control-Allow-Credentials: true` を返す
+- **前提**: フロントエンドから API へのリクエストは、Vercel の `/meshi-diary-api/*` を通して中継する（「ベース URL」を参照）
+  - ブラウザからは同じオリジンへのリクエストになるので、Cookie はフロントエンドのドメインの Cookie として保存され、`SameSite=Lax` のまま送られる。フロントエンドと API のサイトが違うまま直接呼ぶと、Cookie がサードパーティ Cookie 扱いになり、Safari などでは送られない
+  - 本番で Apache が書き換える Path（`/meshi-diary-api/`）と、中継のパス（`/meshi-diary-api`）がそろっているので、Cookie は API へのリクエストにだけ付く
+- 同じオリジンになるので CORS は設定しない
 
 #### 登録できるユーザー
 
