@@ -57,6 +57,31 @@ func UpdatePhoto(d Deps) http.HandlerFunc {
 	}
 }
 
+// DeletePhoto は写真を1枚削除する（docs/api.md の DELETE /diaries/{id}/photos/{photoId}）。Sessions.RequireSession で包んで使う。
+func DeletePhoto(d Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		diary, ok := findOwnDiary(w, r, d.Diaries)
+		if !ok {
+			return
+		}
+		photoID, ok := parsePhotoID(w, r)
+		if !ok {
+			return
+		}
+		photo, err := d.Photos.Delete(r.Context(), diary.ID, photoID)
+		if errors.Is(err, postgres.ErrNotFound) {
+			writePhotoNotFound(w)
+			return
+		}
+		if err != nil {
+			httpx.WriteInternalError(w, err)
+			return
+		}
+		deletePhotoFile(r.Context(), d.Storage, photo.ObjectKey)
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 // parsePhotoID はパスの {photoId} を読む。UUID でないときは 404 を書いて false を返す。
 func parsePhotoID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	id, err := uuid.Parse(r.PathValue("photoId"))

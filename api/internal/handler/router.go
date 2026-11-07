@@ -38,5 +38,6 @@ func NewRouter(d Deps) http.Handler {
 	mux.Handle("GET /calendar", d.Sessions.RequireSession(Calendar(d)))
 	mux.Handle("POST /diaries/{id}/photos", d.Sessions.RequireSession(AddPhotos(d)))
 	mux.Handle("PATCH /diaries/{id}/photos/{photoId}", d.Sessions.RequireSession(UpdatePhoto(d)))
+	mux.Handle("DELETE /diaries/{id}/photos/{photoId}", d.Sessions.RequireSession(DeletePhoto(d)))
 	return mux
 }
