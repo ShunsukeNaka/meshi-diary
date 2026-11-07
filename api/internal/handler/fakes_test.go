@@ -186,6 +186,19 @@ func (f *fakePhotos) AddMany(_ context.Context, diaryID uuid.UUID, photos []post
 	return nil
 }
 
+func (f *fakePhotos) UpdateAlt(_ context.Context, diaryID, photoID uuid.UUID, alt *string) (postgres.Photo, error) {
+	if f.err != nil {
+		return postgres.Photo{}, f.err
+	}
+	p, ok := f.byID[photoID]
+	if !ok || p.DiaryID != diaryID {
+		return postgres.Photo{}, postgres.ErrNotFound
+	}
+	p.Alt = alt
+	f.byID[photoID] = p
+	return p, nil
+}
+
 func (f *fakePhotos) add(p postgres.Photo) {
 	if f.byID == nil {
 		f.byID = map[uuid.UUID]postgres.Photo{}

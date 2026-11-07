@@ -74,3 +74,20 @@ func (p *Photos) AddMany(ctx context.Context, diaryID uuid.UUID, photos []Photo)
 		return tx.Create(&photos).Error
 	})
 }
+
+// UpdateAlt は日記 diaryID の写真 photoID の説明を変え、変えたあとの写真を返す。
+// 写真がない・その日記の写真ではないときは ErrNotFound を返す。
+func (p *Photos) UpdateAlt(ctx context.Context, diaryID, photoID uuid.UUID, alt *string) (Photo, error) {
+	res := p.db.WithContext(ctx).Model(&Photo{}).
+		Where("id = ? AND diary_id = ?", photoID, diaryID).
+		Updates(map[string]any{"alt": alt, "updated_at": gorm.Expr("now()")})
+	if res.Error != nil {
+		return Photo{}, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return Photo{}, ErrNotFound
+	}
+	var photo Photo
+	err := p.db.WithContext(ctx).First(&photo, "id = ?", photoID).Error
+	return photo, err
+}

@@ -1,0 +1,72 @@
+package handler
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/google/uuid"
+
+	"github.com/ShunsukeNaka/meshi-diary/api/internal/httpx"
+	"github.com/ShunsukeNaka/meshi-diary/api/internal/infra/postgres"
+)
+
+type updatePhotoRequest struct {
+	Alt optional[string] `json:"alt"`
+}
+
+// UpdatePhoto は写真の説明を変える（docs/api.md の PATCH /diaries/{id}/photos/{photoId}）。Sessions.RequireSession で包んで使う。
+func UpdatePhoto(d Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		diary, ok := findOwnDiary(w, r, d.Diaries)
+		if !ok {
+			return
+		}
+		photoID, ok := parsePhotoID(w, r)
+		if !ok {
+			return
+		}
+
+		var req updatePhotoRequest
+		if !decodeDiaryJSON(w, r, &req) {
+			return
+		}
+		if !req.Alt.Set {
+			writeValidationError(w, "alt を指定してください")
+			return
+		}
+		var alt *string
+		if !req.Alt.Null {
+			alt = normalizeInfo(&req.Alt.Value)
+		}
+
+		photo, err := d.Photos.UpdateAlt(r.Context(), diary.ID, photoID, alt)
+		if errors.Is(err, postgres.ErrNotFound) {
+			writePhotoNotFound(w)
+			return
+		}
+		if err != nil {
+			httpx.WriteInternalError(w, err)
+			return
+		}
+		res, err := newPhotoResponses(r.Context(), d.Storage, []postgres.Photo{photo})
+		if err != nil {
+			httpx.WriteInternalError(w, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string]photoResponse{"photo": res[0]})
+	}
+}
+
+// parsePhotoID はパスの {photoId} を読む。UUID でないときは 404 を書いて false を返す。
+func parsePhotoID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
+	id, err := uuid.Parse(r.PathValue("photoId"))
+	if err != nil {
+		writePhotoNotFound(w)
+		return uuid.Nil, false
+	}
+	return id, true
+}
+
+func writePhotoNotFound(w http.ResponseWriter) {
+	httpx.WriteError(w, http.StatusNotFound, httpx.CodeNotFound, "写真が見つかりません")
+}
