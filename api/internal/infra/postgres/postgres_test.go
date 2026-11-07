@@ -1,12 +1,14 @@
 package postgres
 
 import (
+	"context"
 	"errors"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/stdlib"
 	"gorm.io/gorm"
 )
 
@@ -76,5 +78,22 @@ func TestWriteAndRead(t *testing.T) {
 	err = tx.Create(&User{GoogleSub: user.GoogleSub, Name: "重複"}).Error
 	if !errors.Is(err, gorm.ErrDuplicatedKey) {
 		t.Fatalf("duplicate google_sub: got %v, want gorm.ErrDuplicatedKey", err)
+	}
+}
+
+func TestShouldPing(t *testing.T) {
+	for _, tc := range []struct {
+		idle time.Duration
+		want bool
+	}{
+		{time.Second, false},
+		{3 * time.Minute, false},
+		{4 * time.Minute, false},
+		{4*time.Minute + time.Second, true},
+		{10 * time.Minute, true},
+	} {
+		if got := shouldPing(context.Background(), stdlib.ShouldPingParams{IdleDuration: tc.idle}); got != tc.want {
+			t.Errorf("idle %v: got %v, want %v", tc.idle, got, tc.want)
+		}
 	}
 }
