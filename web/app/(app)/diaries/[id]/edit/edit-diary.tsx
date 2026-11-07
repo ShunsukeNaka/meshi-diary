@@ -39,6 +39,7 @@ export default function EditDiary() {
         info: diary.info,
         body: diary.body,
       }}
+      initialPhotos={diary.photos}
     />
   );
 }

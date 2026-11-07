@@ -141,3 +141,45 @@ export function deleteDiary(id: string) {
     method: "DELETE",
   });
 }
+
+// 写真をまとめて追加する。1枚でもエラーなら1枚も追加されない（docs/api.md）。
+// 返るのは、追加したあとの日記の写真すべて（表示順）
+export function addPhotos(
+  diaryId: string,
+  photos: { file: File; alt: string | null }[],
+) {
+  const form = new FormData();
+  for (const p of photos) {
+    form.append("photos", p.file);
+    form.append("alts", p.alt ?? "");
+  }
+  return request<{ photos: Photo[] }>(
+    `/diaries/${encodeURIComponent(diaryId)}/photos`,
+    { method: "POST", body: form },
+  );
+}
+
+export function updatePhotoAlt(
+  diaryId: string,
+  photoId: string,
+  alt: string | null,
+) {
+  return request<{ photo: Photo }>(
+    `/diaries/${encodeURIComponent(diaryId)}/photos/${encodeURIComponent(photoId)}`,
+    { method: "PATCH", body: JSON.stringify({ alt }) },
+  );
+}
+
+export function deletePhoto(diaryId: string, photoId: string) {
+  return request<void>(
+    `/diaries/${encodeURIComponent(diaryId)}/photos/${encodeURIComponent(photoId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function reorderPhotos(diaryId: string, photoIds: string[]) {
+  return request<{ photos: Photo[] }>(
+    `/diaries/${encodeURIComponent(diaryId)}/photos/order`,
+    { method: "PUT", body: JSON.stringify({ photo_ids: photoIds }) },
+  );
+}

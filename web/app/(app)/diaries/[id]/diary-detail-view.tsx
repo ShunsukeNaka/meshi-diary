@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ApiError, deleteDiary, getDiary, type DiaryDetail } from "@/lib/api";
 import { calendarHref, formatFullDate, mealLabels } from "@/lib/date";
@@ -79,6 +79,8 @@ function TopBar({
 
 function Detail({ diary }: { diary: DiaryDetail }) {
   const router = useRouter();
+  // 編集画面で、写真の保存が途中で失敗したときに付く
+  const photoError = useSearchParams().get("photoError") === "1";
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
@@ -113,6 +115,12 @@ function Detail({ diary }: { diary: DiaryDetail }) {
         </Link>
         <MoreMenu onDelete={() => setConfirming(true)} />
       </TopBar>
+
+      {photoError ? (
+        <p role="alert" className="px-6 pb-2 text-sm text-danger lg:px-0">
+          写真の一部を保存できませんでした。編集からもう一度お試しください
+        </p>
+      ) : null}
 
       {diary.photos.length > 0 ? (
         <ul className="flex gap-2 overflow-x-auto px-6 py-1 lg:gap-4 lg:px-0 lg:py-2">
