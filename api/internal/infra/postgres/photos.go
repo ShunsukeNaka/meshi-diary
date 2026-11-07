@@ -122,3 +122,49 @@ func lockDiary(tx *gorm.DB, diaryID uuid.UUID) error {
 	}
 	return err
 }
+
+// ErrInvalidOrder は、並べ替えの id が日記の写真とちょうど同じ組み合わせになっていないときに返す。
+var ErrInvalidOrder = errors.New("photo ids do not match the diary's photos")
+
+// Reorder は日記の写真の position を、photoIDs の順に 0 から入れ直す。
+// photoIDs が日記の写真すべてを1回ずつ含んでいないときは ErrInvalidOrder を返し、何も変えない。
+func (p *Photos) Reorder(ctx context.Context, diaryID uuid.UUID, photoIDs []uuid.UUID) error {
+	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockDiary(tx, diaryID); err != nil {
+			return err
+		}
+		var current []uuid.UUID
+		if err := tx.Model(&Photo{}).Where("diary_id = ?", diaryID).Pluck("id", &current).Error; err != nil {
+			return err
+		}
+		if !sameIDs(current, photoIDs) {
+			return ErrInvalidOrder
+		}
+		// (diary_id, position) の UNIQUE はコミット時に検査されるので、途中で重なってもよい
+		for i, id := range photoIDs {
+			if err := tx.Model(&Photo{}).Where("id = ?", id).
+				Updates(map[string]any{"position": i, "updated_at": gorm.Expr("now()")}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// sameIDs は want と got が、重なりなく同じ id の組み合わせかを確かめる。
+func sameIDs(want, got []uuid.UUID) bool {
+	if len(want) != len(got) {
+		return false
+	}
+	left := make(map[uuid.UUID]bool, len(want))
+	for _, id := range want {
+		left[id] = true
+	}
+	for _, id := range got {
+		if !left[id] {
+			return false // ない id か、2回目の id
+		}
+		delete(left, id)
+	}
+	return true
+}

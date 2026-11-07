@@ -217,6 +217,30 @@ func (f *fakePhotos) Delete(_ context.Context, diaryID, photoID uuid.UUID) (post
 	return p, nil
 }
 
+func (f *fakePhotos) Reorder(_ context.Context, diaryID uuid.UUID, photoIDs []uuid.UUID) error {
+	if f.err != nil {
+		return f.err
+	}
+	current, _ := f.ListByDiary(context.Background(), diaryID)
+	if len(current) != len(photoIDs) {
+		return postgres.ErrInvalidOrder
+	}
+	seen := map[uuid.UUID]bool{}
+	for _, id := range photoIDs {
+		p, ok := f.byID[id]
+		if !ok || p.DiaryID != diaryID || seen[id] {
+			return postgres.ErrInvalidOrder
+		}
+		seen[id] = true
+	}
+	for i, id := range photoIDs {
+		p := f.byID[id]
+		p.Position = i
+		f.byID[id] = p
+	}
+	return nil
+}
+
 func (f *fakePhotos) add(p postgres.Photo) {
 	if f.byID == nil {
 		f.byID = map[uuid.UUID]postgres.Photo{}

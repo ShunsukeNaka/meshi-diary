@@ -82,6 +82,54 @@ func DeletePhoto(d Deps) http.HandlerFunc {
 	}
 }
 
+type reorderPhotosRequest struct {
+	PhotoIDs *[]uuid.UUID `json:"photo_ids"`
+}
+
+// ReorderPhotos は写真の表示順を、送った id の順にする（docs/api.md の PUT /diaries/{id}/photos/order）。
+// Sessions.RequireSession で包んで使う。
+func ReorderPhotos(d Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		diary, ok := findOwnDiary(w, r, d.Diaries)
+		if !ok {
+			return
+		}
+		var req reorderPhotosRequest
+		if !decodeDiaryJSON(w, r, &req) {
+			return
+		}
+		if req.PhotoIDs == nil {
+			writeValidationError(w, "photo_ids を指定してください")
+			return
+		}
+
+		err := d.Photos.Reorder(r.Context(), diary.ID, *req.PhotoIDs)
+		switch {
+		case errors.Is(err, postgres.ErrInvalidOrder):
+			writeValidationError(w, "photo_ids には、日記の写真すべてを1回ずつ入れてください")
+			return
+		case errors.Is(err, postgres.ErrNotFound):
+			writeDiaryNotFound(w)
+			return
+		case err != nil:
+			httpx.WriteInternalError(w, err)
+			return
+		}
+
+		photos, err := d.Photos.ListByDiary(r.Context(), diary.ID)
+		if err != nil {
+			httpx.WriteInternalError(w, err)
+			return
+		}
+		res, err := newPhotoResponses(r.Context(), d.Storage, photos)
+		if err != nil {
+			httpx.WriteInternalError(w, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string][]photoResponse{"photos": res})
+	}
+}
+
 // parsePhotoID はパスの {photoId} を読む。UUID でないときは 404 を書いて false を返す。
 func parsePhotoID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	id, err := uuid.Parse(r.PathValue("photoId"))
