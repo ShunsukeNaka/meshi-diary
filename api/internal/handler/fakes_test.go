@@ -1,0 +1,170 @@
+package handler
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"sort"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/ShunsukeNaka/meshi-diary/api/internal/auth"
+	"github.com/ShunsukeNaka/meshi-diary/api/internal/infra/postgres"
+)
+
+var testTime = time.Date(2026, 11, 6, 12, 30, 0, 0, time.FixedZone("JST", 9*60*60))
+
+// fakeDiaries はメモリ上の diaries。postgres.Diaries と同じエラーを返す。
+type fakeDiaries struct {
+	byID    map[uuid.UUID]postgres.Diary
+	created []postgres.Diary
+	err     error // 設定すると、すべての操作でこのエラーを返す
+}
+
+func (f *fakeDiaries) Create(_ context.Context, d *postgres.Diary) error {
+	if f.err != nil {
+		return f.err
+	}
+	d.ID = uuid.New()
+	d.CreatedAt = testTime
+	d.UpdatedAt = d.CreatedAt
+	f.created = append(f.created, *d)
+	f.add(*d)
+	return nil
+}
+
+func (f *fakeDiaries) FindByID(_ context.Context, userID, id uuid.UUID) (postgres.Diary, error) {
+	if f.err != nil {
+		return postgres.Diary{}, f.err
+	}
+	d, ok := f.byID[id]
+	if !ok || d.UserID != userID {
+		return postgres.Diary{}, postgres.ErrNotFound
+	}
+	return d, nil
+}
+
+func (f *fakeDiaries) add(d postgres.Diary) {
+	if f.byID == nil {
+		f.byID = map[uuid.UUID]postgres.Diary{}
+	}
+	f.byID[d.ID] = d
+}
+
+// fakePhotos はメモリ上の photos。
+type fakePhotos struct {
+	byID map[uuid.UUID]postgres.Photo
+	err  error
+}
+
+func (f *fakePhotos) ListByDiary(_ context.Context, diaryID uuid.UUID) ([]postgres.Photo, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	photos := []postgres.Photo{}
+	for _, p := range f.byID {
+		if p.DiaryID == diaryID {
+			photos = append(photos, p)
+		}
+	}
+	sort.Slice(photos, func(i, j int) bool { return photos[i].Position < photos[j].Position })
+	return photos, nil
+}
+
+func (f *fakePhotos) add(p postgres.Photo) {
+	if f.byID == nil {
+		f.byID = map[uuid.UUID]postgres.Photo{}
+	}
+	f.byID[p.ID] = p
+}
+
+// fakeStorage はメモリ上の R2。署名付き URL は https://r2.test/<key> を返す。
+type fakeStorage struct {
+	objects   map[string][]byte
+	deleted   []string
+	putErr    error
+	deleteErr error
+}
+
+func (f *fakeStorage) Put(_ context.Context, key, _ string, body io.Reader) error {
+	if f.putErr != nil {
+		return f.putErr
+	}
+	b, err := io.ReadAll(body)
+	if err != nil {
+		return err
+	}
+	if f.objects == nil {
+		f.objects = map[string][]byte{}
+	}
+	f.objects[key] = b
+	return nil
+}
+
+func (f *fakeStorage) PresignGet(_ context.Context, key string, expires time.Duration) (string, error) {
+	return fmt.Sprintf("https://r2.test/%s?expires=%d", key, int(expires.Seconds())), nil
+}
+
+func (f *fakeStorage) Delete(_ context.Context, key string) error {
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
+	delete(f.objects, key)
+	f.deleted = append(f.deleted, key)
+	return nil
+}
+
+// diaryTestEnv は日記・写真のハンドラーのテストに使う、偽物をつないだルーター。
+type diaryTestEnv struct {
+	router   http.Handler
+	sessions *auth.Sessions
+	diaries  *fakeDiaries
+	photos   *fakePhotos
+	storage  *fakeStorage
+}
+
+func newDiaryTestEnv(t *testing.T) *diaryTestEnv {
+	t.Helper()
+	sessions, err := auth.NewSessions([]byte(strings.Repeat("s", auth.MinSecretLength)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := &diaryTestEnv{sessions: sessions, diaries: &fakeDiaries{}, photos: &fakePhotos{}, storage: &fakeStorage{}}
+	e.router = NewRouter(Deps{Sessions: sessions, Diaries: e.diaries, Photos: e.photos, Storage: e.storage})
+	return e
+}
+
+// addDiary は userID の日記を1件入れて返す。
+func (e *diaryTestEnv) addDiary(userID uuid.UUID) postgres.Diary {
+	info := "駅前のラーメン屋"
+	d := postgres.Diary{
+		ID:        uuid.New(),
+		UserID:    userID,
+		EatenOn:   time.Date(2026, 11, 6, 0, 0, 0, 0, time.UTC),
+		Status:    postgres.MealTypeLunch,
+		Info:      &info,
+		Body:      "本文",
+		CreatedAt: testTime,
+		UpdatedAt: testTime,
+	}
+	e.diaries.add(d)
+	return d
+}
+
+// addPhoto は日記に position の写真を入れて返す。R2 にもファイルを置く。
+func (e *diaryTestEnv) addPhoto(diaryID uuid.UUID, position int) postgres.Photo {
+	id := uuid.New()
+	p := postgres.Photo{ID: id, DiaryID: diaryID, ObjectKey: "photos/" + diaryID.String() + "/" + id.String() + ".webp", Position: position, CreatedAt: testTime, UpdatedAt: testTime}
+	e.photos.add(p)
+	_ = e.storage.Put(context.Background(), p.ObjectKey, "image/webp", strings.NewReader("webp"))
+	return p
+}
+
+func (e *diaryTestEnv) cookie(t *testing.T, userID uuid.UUID) *http.Cookie {
+	t.Helper()
+	return sessionCookie(t, e.sessions, userID)
+}

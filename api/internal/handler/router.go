@@ -7,18 +7,18 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/ShunsukeNaka/meshi-diary/api/internal/auth"
-	"github.com/ShunsukeNaka/meshi-diary/api/internal/infra/r2"
 )
 
 // Deps はハンドラーが使う依存。日記などのエンドポイントを足すときに使う。
 // ログインが必要なルートは Sessions.RequireSession で包む。
 type Deps struct {
 	DB       *gorm.DB
-	Storage  *r2.Client
+	Storage  PhotoStorage
 	Sessions *auth.Sessions
 	IDTokens auth.IDTokenVerifier
 	Users    UserRepository
 	Diaries  DiaryRepository
+	Photos   PhotoRepository
 	// AllowedEmails は /signup できるメールアドレス（小文字）。
 	AllowedEmails []string
 }
@@ -31,5 +31,6 @@ func NewRouter(d Deps) http.Handler {
 	mux.Handle("GET /me", d.Sessions.RequireSession(Me(d)))
 	mux.HandleFunc("POST /logout", Logout(d))
 	mux.Handle("POST /diaries", d.Sessions.RequireSession(CreateDiary(d)))
+	mux.Handle("GET /diaries/{id}", d.Sessions.RequireSession(GetDiary(d)))
 	return mux
 }
