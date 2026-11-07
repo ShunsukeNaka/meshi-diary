@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -16,32 +15,6 @@ import (
 	"github.com/ShunsukeNaka/meshi-diary/api/internal/httpx"
 	"github.com/ShunsukeNaka/meshi-diary/api/internal/infra/postgres"
 )
-
-// fakeDiaries はメモリ上の diaries。作った日記を created に貯める。
-type fakeDiaries struct {
-	created []postgres.Diary
-	err     error // 設定すると、すべての操作でこのエラーを返す
-}
-
-func (f *fakeDiaries) Create(_ context.Context, d *postgres.Diary) error {
-	if f.err != nil {
-		return f.err
-	}
-	d.ID = uuid.New()
-	d.CreatedAt = time.Date(2026, 11, 6, 12, 30, 0, 0, time.FixedZone("JST", 9*60*60))
-	d.UpdatedAt = d.CreatedAt
-	f.created = append(f.created, *d)
-	return nil
-}
-
-func newDiaryTestRouter(t *testing.T, diaries *fakeDiaries) (http.Handler, *auth.Sessions) {
-	t.Helper()
-	sessions, err := auth.NewSessions([]byte(strings.Repeat("s", auth.MinSecretLength)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return NewRouter(Deps{Sessions: sessions, Diaries: diaries}), sessions
-}
 
 // postJSON は cookie を付けて body を POST する。
 func postJSON(router http.Handler, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
@@ -202,4 +175,12 @@ func TestCreateDiary(t *testing.T) {
 			t.Fatalf("status = %d, want 500", rec.Code)
 		}
 	})
+}
+
+func newDiaryTestRouter(t *testing.T, diaries *fakeDiaries) (http.Handler, *auth.Sessions) {
+	t.Helper()
+	e := newDiaryTestEnv(t)
+	e.diaries = diaries
+	e.router = NewRouter(Deps{Sessions: e.sessions, Diaries: diaries, Photos: e.photos, Storage: e.storage})
+	return e.router, e.sessions
 }

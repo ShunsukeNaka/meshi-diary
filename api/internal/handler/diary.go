@@ -22,6 +22,8 @@ const maxDiaryBodyBytes = 1 << 20
 type DiaryRepository interface {
 	// Create は diary を保存し、id・created_at などを diary に入れる。
 	Create(ctx context.Context, diary *postgres.Diary) error
+	// FindByID は userID のユーザーの、id の日記を返す。ないとき・ほかのユーザーの日記のときは postgres.ErrNotFound を返す。
+	FindByID(ctx context.Context, userID, id uuid.UUID) (postgres.Diary, error)
 }
 
 type createDiaryRequest struct {
@@ -31,7 +33,7 @@ type createDiaryRequest struct {
 	Body    string  `json:"body"`
 }
 
-// diaryResponse はレスポンスの diary（docs/api.md の POST /diaries）。
+// diaryResponse はレスポンスの diary（docs/api.md の POST /diaries）。写真は含まない。
 type diaryResponse struct {
 	ID        uuid.UUID         `json:"id"`
 	EatenOn   string            `json:"eaten_on"`
@@ -106,6 +108,64 @@ func CreateDiary(d Deps) http.HandlerFunc {
 
 		httpx.WriteJSON(w, http.StatusCreated, map[string]diaryResponse{"diary": newDiaryResponse(diary)})
 	}
+}
+
+// diaryDetailResponse は写真も含めた diary（docs/api.md の GET /diaries/{id}）。
+type diaryDetailResponse struct {
+	diaryResponse
+	Photos []photoResponse `json:"photos"`
+}
+
+// GetDiary はログイン中のユーザーの日記を、写真と一緒に返す（docs/api.md の GET /diaries/{id}）。Sessions.RequireSession で包んで使う。
+func GetDiary(d Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		diary, ok := findOwnDiary(w, r, d.Diaries)
+		if !ok {
+			return
+		}
+		photos, err := d.Photos.ListByDiary(r.Context(), diary.ID)
+		if err != nil {
+			httpx.WriteInternalError(w, err)
+			return
+		}
+		photoRes, err := newPhotoResponses(r.Context(), d.Storage, photos)
+		if err != nil {
+			httpx.WriteInternalError(w, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string]diaryDetailResponse{
+			"diary": {diaryResponse: newDiaryResponse(diary), Photos: photoRes},
+		})
+	}
+}
+
+// findOwnDiary はパスの {id} の日記を、ログイン中のユーザーのものから探す。
+// 見つからないとき（id が UUID でない・ない・ほかのユーザーの日記）は 404 を書いて false を返す。
+func findOwnDiary(w http.ResponseWriter, r *http.Request, diaries DiaryRepository) (postgres.Diary, bool) {
+	userID, ok := auth.UserID(r.Context())
+	if !ok {
+		httpx.WriteError(w, http.StatusUnauthorized, httpx.CodeUnauthorized, "ログインしてください")
+		return postgres.Diary{}, false
+	}
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		writeDiaryNotFound(w)
+		return postgres.Diary{}, false
+	}
+	diary, err := diaries.FindByID(r.Context(), userID, id)
+	if errors.Is(err, postgres.ErrNotFound) {
+		writeDiaryNotFound(w)
+		return postgres.Diary{}, false
+	}
+	if err != nil {
+		httpx.WriteInternalError(w, err)
+		return postgres.Diary{}, false
+	}
+	return diary, true
+}
+
+func writeDiaryNotFound(w http.ResponseWriter) {
+	httpx.WriteError(w, http.StatusNotFound, httpx.CodeNotFound, "日記が見つかりません")
 }
 
 func validMealType(m postgres.MealType) bool {
