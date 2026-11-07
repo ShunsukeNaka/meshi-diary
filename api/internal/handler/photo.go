@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,4 +46,12 @@ func newPhotoResponses(ctx context.Context, storage PhotoStorage, photos []postg
 		res = append(res, photoResponse{ID: p.ID, URL: url, Alt: p.Alt, Position: p.Position})
 	}
 	return res, nil
+}
+
+// deletePhotoFile は R2 から写真のファイルを消す。
+// DB からはもう消えているので、失敗してもエラーにはせず、ログに残すだけにする（R2 にファイルが残るだけ）。
+func deletePhotoFile(ctx context.Context, storage PhotoStorage, key string) {
+	if err := storage.Delete(ctx, key); err != nil {
+		slog.Error("delete photo file", "key", key, "err", err)
+	}
 }

@@ -26,6 +26,8 @@ type DiaryRepository interface {
 	FindByID(ctx context.Context, userID, id uuid.UUID) (postgres.Diary, error)
 	// Update は diary を保存し直し、updated_at を入れる。ないときは postgres.ErrNotFound を返す。
 	Update(ctx context.Context, diary *postgres.Diary) error
+	// Delete は日記を削除する（写真の行も消える）。ないときは postgres.ErrNotFound を返す。
+	Delete(ctx context.Context, userID, id uuid.UUID) error
 }
 
 type createDiaryRequest struct {
@@ -158,6 +160,35 @@ func UpdateDiary(d Deps) http.HandlerFunc {
 			return
 		}
 		httpx.WriteJSON(w, http.StatusOK, map[string]diaryResponse{"diary": newDiaryResponse(diary)})
+	}
+}
+
+// DeleteDiary はログイン中のユーザーの日記を、写真と一緒に削除する（docs/api.md の DELETE /diaries/{id}）。
+// Sessions.RequireSession で包んで使う。
+func DeleteDiary(d Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		diary, ok := findOwnDiary(w, r, d.Diaries)
+		if !ok {
+			return
+		}
+		// 行を消す前に、R2 から消すファイルのキーを読んでおく
+		photos, err := d.Photos.ListByDiary(r.Context(), diary.ID)
+		if err != nil {
+			httpx.WriteInternalError(w, err)
+			return
+		}
+		if err := d.Diaries.Delete(r.Context(), diary.UserID, diary.ID); err != nil {
+			if errors.Is(err, postgres.ErrNotFound) {
+				writeDiaryNotFound(w)
+				return
+			}
+			httpx.WriteInternalError(w, err)
+			return
+		}
+		for _, p := range photos {
+			deletePhotoFile(r.Context(), d.Storage, p.ObjectKey)
+		}
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 

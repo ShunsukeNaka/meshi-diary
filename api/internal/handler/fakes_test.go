@@ -23,6 +23,8 @@ type fakeDiaries struct {
 	byID    map[uuid.UUID]postgres.Diary
 	created []postgres.Diary
 	err     error // 設定すると、すべての操作でこのエラーを返す
+	// onDelete は日記を消したときに呼ばれる（写真の ON DELETE CASCADE の再現に使う）
+	onDelete func(id uuid.UUID)
 }
 
 func (f *fakeDiaries) Create(_ context.Context, d *postgres.Diary) error {
@@ -58,6 +60,22 @@ func (f *fakeDiaries) Update(_ context.Context, d *postgres.Diary) error {
 	}
 	d.UpdatedAt = testTime.Add(time.Hour)
 	f.byID[d.ID] = *d
+	return nil
+}
+
+// Delete は日記を消す。写真の行を消す（CASCADE）のは fakePhotos 側で cascade を呼んで再現する。
+func (f *fakeDiaries) Delete(_ context.Context, userID, id uuid.UUID) error {
+	if f.err != nil {
+		return f.err
+	}
+	d, ok := f.byID[id]
+	if !ok || d.UserID != userID {
+		return postgres.ErrNotFound
+	}
+	delete(f.byID, id)
+	if f.onDelete != nil {
+		f.onDelete(id)
+	}
 	return nil
 }
 
@@ -147,6 +165,13 @@ func newDiaryTestEnv(t *testing.T) *diaryTestEnv {
 		t.Fatal(err)
 	}
 	e := &diaryTestEnv{sessions: sessions, diaries: &fakeDiaries{}, photos: &fakePhotos{}, storage: &fakeStorage{}}
+	e.diaries.onDelete = func(diaryID uuid.UUID) {
+		for id, p := range e.photos.byID {
+			if p.DiaryID == diaryID {
+				delete(e.photos.byID, id)
+			}
+		}
+	}
 	e.router = NewRouter(Deps{Sessions: sessions, Diaries: e.diaries, Photos: e.photos, Storage: e.storage})
 	return e
 }
