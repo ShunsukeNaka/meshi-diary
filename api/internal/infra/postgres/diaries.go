@@ -56,3 +56,16 @@ func (d *Diaries) Update(ctx context.Context, diary *Diary) error {
 	diary.UpdatedAt = now
 	return nil
 }
+
+// Delete は userID のユーザーの、id の日記を削除する。写真の行は ON DELETE CASCADE で一緒に消える。
+// ないとき・ほかのユーザーの日記のときは ErrNotFound を返す。R2 のファイルは消さない。
+func (d *Diaries) Delete(ctx context.Context, userID, id uuid.UUID) error {
+	res := d.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).Delete(&Diary{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

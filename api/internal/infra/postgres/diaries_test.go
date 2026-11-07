@@ -102,4 +102,28 @@ func TestDiaries(t *testing.T) {
 			t.Fatalf("unknown diary: err = %v, want ErrNotFound", err)
 		}
 	})
+	t.Run("Delete removes the diary and its photos", func(t *testing.T) {
+		diary := createTestDiary(t, tx, user.ID, "2026-11-10", MealTypeLunch)
+		createTestPhoto(t, tx, diary.ID, 0)
+		createTestPhoto(t, tx, diary.ID, 1)
+
+		other := createTestUser(t, tx)
+		if err := diaries.Delete(ctx, other.ID, diary.ID); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("other user's diary: err = %v, want ErrNotFound", err)
+		}
+
+		if err := diaries.Delete(ctx, user.ID, diary.ID); err != nil {
+			t.Fatalf("delete: %v", err)
+		}
+		if _, err := diaries.FindByID(ctx, user.ID, diary.ID); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("after delete: err = %v, want ErrNotFound", err)
+		}
+		photos, err := NewPhotos(tx).ListByDiary(ctx, diary.ID)
+		if err != nil || len(photos) != 0 {
+			t.Fatalf("photos after delete = %v, %v", photos, err)
+		}
+		if err := diaries.Delete(ctx, user.ID, diary.ID); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("delete again: err = %v, want ErrNotFound", err)
+		}
+	})
 }
