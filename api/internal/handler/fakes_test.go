@@ -48,6 +48,19 @@ func (f *fakeDiaries) FindByID(_ context.Context, userID, id uuid.UUID) (postgre
 	return d, nil
 }
 
+func (f *fakeDiaries) Update(_ context.Context, d *postgres.Diary) error {
+	if f.err != nil {
+		return f.err
+	}
+	old, ok := f.byID[d.ID]
+	if !ok || old.UserID != d.UserID {
+		return postgres.ErrNotFound
+	}
+	d.UpdatedAt = testTime.Add(time.Hour)
+	f.byID[d.ID] = *d
+	return nil
+}
+
 func (f *fakeDiaries) add(d postgres.Diary) {
 	if f.byID == nil {
 		f.byID = map[uuid.UUID]postgres.Diary{}

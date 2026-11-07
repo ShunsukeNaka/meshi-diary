@@ -24,6 +24,8 @@ type DiaryRepository interface {
 	Create(ctx context.Context, diary *postgres.Diary) error
 	// FindByID は userID のユーザーの、id の日記を返す。ないとき・ほかのユーザーの日記のときは postgres.ErrNotFound を返す。
 	FindByID(ctx context.Context, userID, id uuid.UUID) (postgres.Diary, error)
+	// Update は diary を保存し直し、updated_at を入れる。ないときは postgres.ErrNotFound を返す。
+	Update(ctx context.Context, diary *postgres.Diary) error
 }
 
 type createDiaryRequest struct {
@@ -66,41 +68,25 @@ func CreateDiary(d Deps) http.HandlerFunc {
 		}
 
 		var req createDiaryRequest
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxDiaryBodyBytes)).Decode(&req); err != nil {
-			var tooLarge *http.MaxBytesError
-			if errors.As(err, &tooLarge) {
-				httpx.WriteError(w, http.StatusRequestEntityTooLarge, httpx.CodePayloadTooLarge, "日記が大きすぎます")
-				return
-			}
-			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeValidationError, "リクエストを JSON として読めません")
+		if !decodeDiaryJSON(w, r, &req) {
+			return
+		}
+		eatenOn, ok := parseEatenOn(req.EatenOn)
+		if !ok {
+			writeValidationError(w, msgInvalidEatenOn)
+			return
+		}
+		status, ok := parseStatus(req.Status)
+		if !ok {
+			writeValidationError(w, msgInvalidStatus)
+			return
+		}
+		if !validBody(req.Body) {
+			writeValidationError(w, msgInvalidBody)
 			return
 		}
 
-		eatenOn, err := time.Parse(time.DateOnly, req.EatenOn)
-		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeValidationError, "eaten_on は YYYY-MM-DD の形の日付にしてください")
-			return
-		}
-		// 選び忘れても困らないので、省略したときは OTHER にする
-		status := postgres.MealTypeOther
-		if req.Status != "" {
-			status = postgres.MealType(req.Status)
-		}
-		if !validMealType(status) {
-			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeValidationError, "status は BREAKFAST・LUNCH・DINNER・OTHER のどれかにしてください")
-			return
-		}
-		// TrimSpace は全角スペース・改行・タブも取り除く
-		if strings.TrimSpace(req.Body) == "" {
-			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeValidationError, "body を1文字以上入力してください")
-			return
-		}
-		info := req.Info
-		if info != nil && *info == "" {
-			info = nil
-		}
-
-		diary := postgres.Diary{UserID: userID, EatenOn: eatenOn, Status: status, Info: info, Body: req.Body}
+		diary := postgres.Diary{UserID: userID, EatenOn: eatenOn, Status: status, Info: normalizeInfo(req.Info), Body: req.Body}
 		if err := d.Diaries.Create(r.Context(), &diary); err != nil {
 			httpx.WriteInternalError(w, err)
 			return
@@ -108,6 +94,141 @@ func CreateDiary(d Deps) http.HandlerFunc {
 
 		httpx.WriteJSON(w, http.StatusCreated, map[string]diaryResponse{"diary": newDiaryResponse(diary)})
 	}
+}
+
+// updateDiaryRequest は PATCH /diaries/{id} のリクエスト。省略したフィールドは変えない。
+type updateDiaryRequest struct {
+	EatenOn optional[string] `json:"eaten_on"`
+	Status  optional[string] `json:"status"`
+	Info    optional[string] `json:"info"`
+	Body    optional[string] `json:"body"`
+}
+
+// UpdateDiary はログイン中のユーザーの日記を、送ったフィールドだけ変える（docs/api.md の PATCH /diaries/{id}）。
+// Sessions.RequireSession で包んで使う。
+func UpdateDiary(d Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		diary, ok := findOwnDiary(w, r, d.Diaries)
+		if !ok {
+			return
+		}
+
+		var req updateDiaryRequest
+		if !decodeDiaryJSON(w, r, &req) {
+			return
+		}
+		if req.EatenOn.Set {
+			eatenOn, ok := parseEatenOn(req.EatenOn.Value)
+			if req.EatenOn.Null || !ok {
+				writeValidationError(w, msgInvalidEatenOn)
+				return
+			}
+			diary.EatenOn = eatenOn
+		}
+		if req.Status.Set {
+			// null・空文字は OTHER（作るときと同じ）
+			status, ok := parseStatus(req.Status.Value)
+			if !ok {
+				writeValidationError(w, msgInvalidStatus)
+				return
+			}
+			diary.Status = status
+		}
+		if req.Info.Set {
+			if req.Info.Null {
+				diary.Info = nil
+			} else {
+				diary.Info = normalizeInfo(&req.Info.Value)
+			}
+		}
+		if req.Body.Set {
+			if req.Body.Null || !validBody(req.Body.Value) {
+				writeValidationError(w, msgInvalidBody)
+				return
+			}
+			diary.Body = req.Body.Value
+		}
+
+		if err := d.Diaries.Update(r.Context(), &diary); err != nil {
+			if errors.Is(err, postgres.ErrNotFound) {
+				writeDiaryNotFound(w)
+				return
+			}
+			httpx.WriteInternalError(w, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string]diaryResponse{"diary": newDiaryResponse(diary)})
+	}
+}
+
+// optional は JSON のフィールドが「省略された」「null」「値がある」のどれかを見分ける。
+type optional[T any] struct {
+	Set   bool // フィールドがあった（null も含む）
+	Null  bool // null だった
+	Value T
+}
+
+// UnmarshalJSON はフィールドがあるときだけ呼ばれる（null のときも呼ばれる）。
+func (o *optional[T]) UnmarshalJSON(b []byte) error {
+	o.Set = true
+	if string(b) == "null" {
+		o.Null = true
+		return nil
+	}
+	return json.Unmarshal(b, &o.Value)
+}
+
+const (
+	msgInvalidEatenOn = "eaten_on は YYYY-MM-DD の形の日付にしてください"
+	msgInvalidStatus  = "status は BREAKFAST・LUNCH・DINNER・OTHER のどれかにしてください"
+	msgInvalidBody    = "body を1文字以上入力してください"
+)
+
+// decodeDiaryJSON はリクエストボディの JSON を v に読み込む。
+// 読めないときは 400、大きすぎるときは 413 を書いて false を返す。
+func decodeDiaryJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxDiaryBodyBytes)).Decode(v); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			httpx.WriteError(w, http.StatusRequestEntityTooLarge, httpx.CodePayloadTooLarge, "日記が大きすぎます")
+			return false
+		}
+		writeValidationError(w, "リクエストを JSON として読めません")
+		return false
+	}
+	return true
+}
+
+func writeValidationError(w http.ResponseWriter, message string) {
+	httpx.WriteError(w, http.StatusBadRequest, httpx.CodeValidationError, message)
+}
+
+// parseEatenOn は YYYY-MM-DD の日付を読む。
+func parseEatenOn(s string) (time.Time, bool) {
+	t, err := time.Parse(time.DateOnly, s)
+	return t, err == nil
+}
+
+// parseStatus は食事の区分を読む。選び忘れても困らないので、空のときは OTHER にする。
+func parseStatus(s string) (postgres.MealType, bool) {
+	if s == "" {
+		return postgres.MealTypeOther, true
+	}
+	m := postgres.MealType(s)
+	return m, validMealType(m)
+}
+
+// validBody は本文に空白以外の文字があるかを確かめる。TrimSpace は全角スペース・改行・タブも取り除く。
+func validBody(s string) bool {
+	return strings.TrimSpace(s) != ""
+}
+
+// normalizeInfo は空文字の一言メモを nil（DB では NULL）にそろえる。
+func normalizeInfo(info *string) *string {
+	if info == nil || *info == "" {
+		return nil
+	}
+	return info
 }
 
 // diaryDetailResponse は写真も含めた diary（docs/api.md の GET /diaries/{id}）。
