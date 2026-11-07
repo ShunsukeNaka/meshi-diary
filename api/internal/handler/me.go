@@ -33,3 +33,13 @@ func Me(d Deps) http.HandlerFunc {
 		httpx.WriteJSON(w, http.StatusOK, map[string]userResponse{"user": newUserResponse(user)})
 	}
 }
+
+// Logout はセッション Cookie を消す（docs/api.md の POST /logout）。
+// Cookie がない・正しくないときも 204 を返す（冪等）。
+func Logout(d Deps) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		d.Sessions.Clear(w)
+		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(http.StatusNoContent)
+	}
+}

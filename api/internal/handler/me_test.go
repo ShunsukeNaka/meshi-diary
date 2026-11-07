@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -134,5 +135,45 @@ func TestMe(t *testing.T) {
 			t.Fatalf("cookie not cleared: %+v", c)
 		}
 		assertUnauthorized(t, rec)
+	})
+}
+
+func TestLogout(t *testing.T) {
+	user := postgres.User{ID: uuid.New(), Name: "山田 太郎"}
+	d := newTestDeps(t, fakeUsers{user.ID: user})
+	router := NewRouter(d)
+
+	t.Run("clears the cookie and /me becomes 401", func(t *testing.T) {
+		rec := serve(router, http.MethodPost, "/logout", sessionCookie(t, d.Sessions, user.ID))
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("status = %d, want 204", rec.Code)
+		}
+		cleared := findSessionCookie(t, rec)
+		// http.Cookie.MaxAge が負なら Set-Cookie は Max-Age=0
+		if cleared.MaxAge >= 0 || cleared.Value != "" {
+			t.Fatalf("cookie not cleared: %+v", cleared)
+		}
+		if got := rec.Header().Get("Set-Cookie"); !strings.Contains(got, "Max-Age=0") {
+			t.Fatalf("Set-Cookie = %q, want Max-Age=0", got)
+		}
+
+		// ブラウザは Max-Age=0 の Cookie を消すので、次のリクエストには Cookie が付かない
+		assertUnauthorized(t, serve(router, http.MethodGet, "/me", nil))
+		// 消した値（空）が送られてきても 401
+		assertUnauthorized(t, serve(router, http.MethodGet, "/me", &http.Cookie{Name: auth.SessionCookieName, Value: cleared.Value}))
+	})
+
+	t.Run("no cookie is also 204", func(t *testing.T) {
+		rec := serve(router, http.MethodPost, "/logout", nil)
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("status = %d, want 204", rec.Code)
+		}
+		findSessionCookie(t, rec)
+	})
+
+	t.Run("GET is not allowed", func(t *testing.T) {
+		if rec := serve(router, http.MethodGet, "/logout", nil); rec.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("status = %d, want 405", rec.Code)
+		}
 	})
 }
