@@ -18,6 +18,7 @@ type Deps struct {
 	Sessions *auth.Sessions
 	IDTokens auth.IDTokenVerifier
 	Users    UserRepository
+	Diaries  DiaryRepository
 	// AllowedEmails は /signup できるメールアドレス（小文字）。
 	AllowedEmails []string
 }
@@ -29,5 +30,6 @@ func NewRouter(d Deps) http.Handler {
 	mux.HandleFunc("POST /login", Login(d))
 	mux.Handle("GET /me", d.Sessions.RequireSession(Me(d)))
 	mux.HandleFunc("POST /logout", Logout(d))
+	mux.Handle("POST /diaries", d.Sessions.RequireSession(CreateDiary(d)))
 	return mux
 }
