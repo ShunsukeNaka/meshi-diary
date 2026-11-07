@@ -126,4 +126,28 @@ func TestDiaries(t *testing.T) {
 			t.Fatalf("delete again: err = %v, want ErrNotFound", err)
 		}
 	})
+	t.Run("ListBetween", func(t *testing.T) {
+		u := createTestUser(t, tx)
+		createTestDiary(t, tx, u.ID, "2026-10-31", MealTypeDinner)
+		nov6a := createTestDiary(t, tx, u.ID, "2026-11-06", MealTypeDinner)
+		nov2 := createTestDiary(t, tx, u.ID, "2026-11-02", MealTypeLunch)
+		nov6b := createTestDiary(t, tx, u.ID, "2026-11-06", MealTypeBreakfast)
+		nov30 := createTestDiary(t, tx, u.ID, "2026-11-30", MealTypeOther)
+		createTestDiary(t, tx, u.ID, "2026-12-01", MealTypeOther)
+		createTestDiary(t, tx, createTestUser(t, tx).ID, "2026-11-06", MealTypeLunch)
+
+		got, err := diaries.ListBetween(ctx, u.ID, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []uuid.UUID{nov2.ID, nov6a.ID, nov6b.ID, nov30.ID}
+		if len(got) != len(want) {
+			t.Fatalf("got %d diaries, want %d: %+v", len(got), len(want), got)
+		}
+		for i := range want {
+			if got[i].ID != want[i] {
+				t.Fatalf("got[%d] = %v (%s), want %v", i, got[i].ID, got[i].EatenOn.Format(time.DateOnly), want[i])
+			}
+		}
+	})
 }
