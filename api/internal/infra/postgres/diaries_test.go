@@ -64,4 +64,42 @@ func TestDiaries(t *testing.T) {
 			t.Fatalf("unknown diary: err = %v, want ErrNotFound", err)
 		}
 	})
+	t.Run("Update", func(t *testing.T) {
+		created := createTestDiary(t, tx, user.ID, "2026-11-08", MealTypeLunch)
+		// DB はマイクロ秒までしか持たないので、保存された値で比べる
+		diary, err := diaries.FindByID(ctx, user.ID, created.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		before := diary.UpdatedAt
+
+		diary.EatenOn = time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)
+		diary.Status = MealTypeBreakfast
+		diary.Info = nil
+		diary.Body = "書き直した本文"
+		if err := diaries.Update(ctx, &diary); err != nil {
+			t.Fatalf("update: %v", err)
+		}
+		got, err := diaries.FindByID(ctx, user.ID, diary.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.EatenOn.Format(time.DateOnly) != "2026-11-09" || got.Status != MealTypeBreakfast || got.Info != nil || got.Body != "書き直した本文" {
+			t.Fatalf("got %+v", got)
+		}
+		if !got.UpdatedAt.After(before) || !got.CreatedAt.Equal(diary.CreatedAt) {
+			t.Fatalf("updated_at = %v (before %v), created_at = %v", got.UpdatedAt, before, got.CreatedAt)
+		}
+
+		other := createTestUser(t, tx)
+		stolen := got
+		stolen.UserID = other.ID
+		if err := diaries.Update(ctx, &stolen); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("other user's diary: err = %v, want ErrNotFound", err)
+		}
+		missing := Diary{ID: uuid.New(), UserID: user.ID, EatenOn: got.EatenOn, Status: MealTypeOther, Body: "x"}
+		if err := diaries.Update(ctx, &missing); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("unknown diary: err = %v, want ErrNotFound", err)
+		}
+	})
 }

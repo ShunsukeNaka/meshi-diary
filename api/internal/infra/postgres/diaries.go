@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -31,4 +32,27 @@ func (d *Diaries) FindByID(ctx context.Context, userID, id uuid.UUID) (Diary, er
 		return Diary{}, ErrNotFound
 	}
 	return diary, err
+}
+
+// Update は diary の食事をした日・食事の区分・一言メモ・本文を保存し、updated_at を今の時刻にする。
+// diary.ID と diary.UserID で日記を探す。ないとき・ほかのユーザーの日記のときは ErrNotFound を返す。
+func (d *Diaries) Update(ctx context.Context, diary *Diary) error {
+	now := time.Now()
+	res := d.db.WithContext(ctx).Model(&Diary{}).
+		Where("id = ? AND user_id = ?", diary.ID, diary.UserID).
+		Updates(map[string]any{
+			"eaten_on":   diary.EatenOn,
+			"status":     diary.Status,
+			"info":       diary.Info,
+			"body":       diary.Body,
+			"updated_at": now,
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	diary.UpdatedAt = now
+	return nil
 }
