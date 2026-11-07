@@ -69,3 +69,14 @@ func (d *Diaries) Delete(ctx context.Context, userID, id uuid.UUID) error {
 	}
 	return nil
 }
+
+// ListBetween は userID のユーザーの、食事をした日が from 以上 to 未満の日記を返す。
+// 食事をした日の古い順、同じ日の中は作った順に並べる。
+func (d *Diaries) ListBetween(ctx context.Context, userID uuid.UUID, from, to time.Time) ([]Diary, error) {
+	diaries := []Diary{}
+	err := d.db.WithContext(ctx).
+		Where("user_id = ? AND eaten_on >= ? AND eaten_on < ?", userID, from, to).
+		Order("eaten_on, created_at").
+		Find(&diaries).Error
+	return diaries, err
+}
