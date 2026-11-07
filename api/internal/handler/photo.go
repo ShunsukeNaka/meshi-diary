@@ -25,6 +25,8 @@ type PhotoStorage interface {
 type PhotoRepository interface {
 	// ListByDiary は日記の写真を表示順に返す。写真がないときは空のスライスを返す。
 	ListByDiary(ctx context.Context, diaryID uuid.UUID) ([]postgres.Photo, error)
+	// FirstOfDiaries は日記ごとの1枚目の写真を、日記の id をキーにして返す。写真がない日記はキーに入らない。
+	FirstOfDiaries(ctx context.Context, diaryIDs []uuid.UUID) (map[uuid.UUID]postgres.Photo, error)
 }
 
 // photoResponse はレスポンスの写真（docs/api.md の photos[]）。

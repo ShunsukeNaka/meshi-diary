@@ -79,6 +79,26 @@ func (f *fakeDiaries) Delete(_ context.Context, userID, id uuid.UUID) error {
 	return nil
 }
 
+func (f *fakeDiaries) ListBetween(_ context.Context, userID uuid.UUID, from, to time.Time) ([]postgres.Diary, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	diaries := []postgres.Diary{}
+	for _, d := range f.byID {
+		if d.UserID == userID && !d.EatenOn.Before(from) && d.EatenOn.Before(to) {
+			diaries = append(diaries, d)
+		}
+	}
+	sort.Slice(diaries, func(i, j int) bool {
+		a, b := diaries[i], diaries[j]
+		if !a.EatenOn.Equal(b.EatenOn) {
+			return a.EatenOn.Before(b.EatenOn)
+		}
+		return a.CreatedAt.Before(b.CreatedAt)
+	})
+	return diaries, nil
+}
+
 func (f *fakeDiaries) add(d postgres.Diary) {
 	if f.byID == nil {
 		f.byID = map[uuid.UUID]postgres.Diary{}
@@ -104,6 +124,21 @@ func (f *fakePhotos) ListByDiary(_ context.Context, diaryID uuid.UUID) ([]postgr
 	}
 	sort.Slice(photos, func(i, j int) bool { return photos[i].Position < photos[j].Position })
 	return photos, nil
+}
+
+func (f *fakePhotos) FirstOfDiaries(_ context.Context, diaryIDs []uuid.UUID) (map[uuid.UUID]postgres.Photo, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	first := map[uuid.UUID]postgres.Photo{}
+	for _, id := range diaryIDs {
+		for _, p := range f.byID {
+			if p.DiaryID == id && p.Position == 0 {
+				first[id] = p
+			}
+		}
+	}
+	return first, nil
 }
 
 func (f *fakePhotos) add(p postgres.Photo) {
@@ -189,6 +224,16 @@ func (e *diaryTestEnv) addDiary(userID uuid.UUID) postgres.Diary {
 		CreatedAt: testTime,
 		UpdatedAt: testTime,
 	}
+	e.diaries.add(d)
+	return d
+}
+
+// addDiaryOn は userID の、date（YYYY-MM-DD）の日記を、created の時刻に作ったものとして入れる。
+func (e *diaryTestEnv) addDiaryOn(userID uuid.UUID, date string, status postgres.MealType, created time.Time) postgres.Diary {
+	d := e.addDiary(userID)
+	d.EatenOn, _ = time.Parse(time.DateOnly, date)
+	d.Status = status
+	d.CreatedAt = created
 	e.diaries.add(d)
 	return d
 }
