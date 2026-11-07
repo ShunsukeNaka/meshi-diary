@@ -133,8 +133,9 @@ func (f *fakeDiaries) add(d postgres.Diary) {
 
 // fakePhotos はメモリ上の photos。
 type fakePhotos struct {
-	byID map[uuid.UUID]postgres.Photo
-	err  error
+	byID   map[uuid.UUID]postgres.Photo
+	err    error
+	addErr error // AddMany だけで返すエラー
 }
 
 func (f *fakePhotos) ListByDiary(_ context.Context, diaryID uuid.UUID) ([]postgres.Photo, error) {
@@ -164,6 +165,25 @@ func (f *fakePhotos) FirstOfDiaries(_ context.Context, diaryIDs []uuid.UUID) (ma
 		}
 	}
 	return first, nil
+}
+
+func (f *fakePhotos) AddMany(_ context.Context, diaryID uuid.UUID, photos []postgres.Photo) error {
+	if f.err != nil {
+		return f.err
+	}
+	if f.addErr != nil {
+		return f.addErr
+	}
+	existing, _ := f.ListByDiary(context.Background(), diaryID)
+	if len(existing)+len(photos) > postgres.MaxPhotosPerDiary {
+		return postgres.ErrTooManyPhotos
+	}
+	for i := range photos {
+		photos[i].DiaryID = diaryID
+		photos[i].Position = len(existing) + i
+		f.add(photos[i])
+	}
+	return nil
 }
 
 func (f *fakePhotos) add(p postgres.Photo) {

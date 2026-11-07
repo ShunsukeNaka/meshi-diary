@@ -27,6 +27,8 @@ type PhotoRepository interface {
 	ListByDiary(ctx context.Context, diaryID uuid.UUID) ([]postgres.Photo, error)
 	// FirstOfDiaries は日記ごとの1枚目の写真を、日記の id をキーにして返す。写真がない日記はキーに入らない。
 	FirstOfDiaries(ctx context.Context, diaryIDs []uuid.UUID) (map[uuid.UUID]postgres.Photo, error)
+	// AddMany は今ある写真のうしろに photos を追加する。10枚を超えるときは postgres.ErrTooManyPhotos を返す。
+	AddMany(ctx context.Context, diaryID uuid.UUID, photos []postgres.Photo) error
 }
 
 // photoResponse はレスポンスの写真（docs/api.md の photos[]）。
