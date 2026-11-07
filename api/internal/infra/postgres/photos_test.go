@@ -122,6 +122,38 @@ func TestPhotos(t *testing.T) {
 			t.Fatalf("other diary: err = %v, want ErrNotFound", err)
 		}
 	})
+	t.Run("Delete closes the gap in positions", func(t *testing.T) {
+		diary := createTestDiary(t, tx, user.ID, "2026-11-12", MealTypeLunch)
+		p0 := createTestPhoto(t, tx, diary.ID, 0)
+		p1 := createTestPhoto(t, tx, diary.ID, 1)
+		p2 := createTestPhoto(t, tx, diary.ID, 2)
+		p3 := createTestPhoto(t, tx, diary.ID, 3)
+
+		deleted, err := photos.Delete(ctx, diary.ID, p1.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if deleted.ObjectKey != p1.ObjectKey {
+			t.Fatalf("deleted = %+v", deleted)
+		}
+		// DEFERRABLE の UNIQUE をここで検査させる（ロールバックで終わるテストではコミット時の検査が走らないため）
+		if err := tx.Exec("SET CONSTRAINTS ALL IMMEDIATE").Error; err != nil {
+			t.Fatalf("unique check: %v", err)
+		}
+		tx.Exec("SET CONSTRAINTS ALL DEFERRED")
+		got, _ := photos.ListByDiary(ctx, diary.ID)
+		if len(got) != 3 || got[0].ID != p0.ID || got[1].ID != p2.ID || got[2].ID != p3.ID || got[1].Position != 1 || got[2].Position != 2 {
+			t.Fatalf("got %+v", got)
+		}
+
+		other := createTestDiary(t, tx, user.ID, "2026-11-12", MealTypeDinner)
+		if _, err := photos.Delete(ctx, other.ID, p0.ID); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("other diary: err = %v, want ErrNotFound", err)
+		}
+		if _, err := photos.Delete(ctx, diary.ID, p1.ID); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("delete again: err = %v, want ErrNotFound", err)
+		}
+	})
 }
 
 func newTestPhoto(diaryID uuid.UUID, alt *string) Photo {

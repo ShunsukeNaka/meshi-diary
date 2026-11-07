@@ -53,11 +53,7 @@ func (p *Photos) FirstOfDiaries(ctx context.Context, diaryIDs []uuid.UUID) (map[
 // 追加すると MaxPhotosPerDiary を超えるときは ErrTooManyPhotos を返し、1枚も追加しない。
 func (p *Photos) AddMany(ctx context.Context, diaryID uuid.UUID, photos []Photo) error {
 	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 同じ日記への追加が同時に来ても枚数を数えまちがえないように、日記の行をロックする
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").First(&Diary{}, "id = ?", diaryID).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrNotFound
-			}
+		if err := lockDiary(tx, diaryID); err != nil {
 			return err
 		}
 		var count int64
@@ -90,4 +86,39 @@ func (p *Photos) UpdateAlt(ctx context.Context, diaryID, photoID uuid.UUID, alt 
 	var photo Photo
 	err := p.db.WithContext(ctx).First(&photo, "id = ?", photoID).Error
 	return photo, err
+}
+
+// Delete は日記 diaryID の写真 photoID を削除し、うしろの写真の position を1つずつ詰める。削除した写真を返す。
+// 写真がない・その日記の写真ではないときは ErrNotFound を返す。R2 のファイルは消さない。
+func (p *Photos) Delete(ctx context.Context, diaryID, photoID uuid.UUID) (Photo, error) {
+	var photo Photo
+	err := p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockDiary(tx, diaryID); err != nil {
+			return err
+		}
+		if err := tx.First(&photo, "id = ? AND diary_id = ?", photoID, diaryID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
+			return err
+		}
+		if err := tx.Delete(&Photo{}, "id = ?", photoID).Error; err != nil {
+			return err
+		}
+		// (diary_id, position) の UNIQUE はコミット時に検査されるので、途中で重なってもよい
+		return tx.Model(&Photo{}).
+			Where("diary_id = ? AND position > ?", diaryID, photo.Position).
+			Updates(map[string]any{"position": gorm.Expr("position - 1"), "updated_at": gorm.Expr("now()")}).Error
+	})
+	return photo, err
+}
+
+// lockDiary は日記の行を SELECT ... FOR UPDATE でロックする。同じ日記の写真を同時に変えたときに、
+// 枚数や position を数えまちがえないようにするため。日記がないときは ErrNotFound を返す。
+func lockDiary(tx *gorm.DB, diaryID uuid.UUID) error {
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").First(&Diary{}, "id = ?", diaryID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ErrNotFound
+	}
+	return err
 }

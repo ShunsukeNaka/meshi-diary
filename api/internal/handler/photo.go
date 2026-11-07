@@ -31,6 +31,8 @@ type PhotoRepository interface {
 	AddMany(ctx context.Context, diaryID uuid.UUID, photos []postgres.Photo) error
 	// UpdateAlt は写真の説明を変える。写真がない・その日記の写真ではないときは postgres.ErrNotFound を返す。
 	UpdateAlt(ctx context.Context, diaryID, photoID uuid.UUID, alt *string) (postgres.Photo, error)
+	// Delete は写真を削除して position を詰め、削除した写真を返す。ないときは postgres.ErrNotFound を返す。
+	Delete(ctx context.Context, diaryID, photoID uuid.UUID) (postgres.Photo, error)
 }
 
 // photoResponse はレスポンスの写真（docs/api.md の photos[]）。
