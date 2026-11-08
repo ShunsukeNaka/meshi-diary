@@ -11,6 +11,9 @@ import {
 export const maxPhotos = 10;
 export const maxPhotoBytes = 10 * 1024 * 1024;
 export const acceptedTypes = ["image/jpeg", "image/png", "image/webp"];
+// 送る前に縮める大きさ（長辺の px）と、WebP の画質（#109）
+export const maxLongSide = 2048;
+export const webpQuality = 0.8;
 
 // 画面の写真。保存ずみ（existing）と、選んだだけでまだ送っていない（added）がある
 export type PhotoItem =
@@ -62,7 +65,7 @@ export function photosChanged(
 }
 
 // 画面の写真の状態を API に反映する。
-// 1. 消した写真を削除 2. 説明を変えた写真を更新 3. 新しい写真をまとめて追加 4. 画面の順番に並べ替え
+// 1. 消した写真を削除 2. 説明を変えた写真を更新 3. 新しい写真を縮めて WebP にし、まとめて追加 4. 画面の順番に並べ替え
 export async function savePhotos(
   diaryId: string,
   initial: PhotoItem[],
@@ -86,10 +89,12 @@ export async function savePhotos(
   const added = current.filter((i) => i.kind === "added");
   let saved: Photo[] | null = null;
   if (added.length > 0) {
-    const res = await addPhotos(
-      diaryId,
-      added.map((i) => ({ file: i.file, alt: emptyToNull(i.alt) })),
-    );
+    // 写真を縮めて WebP にしてから送る。メモリを使いすぎないよう、1枚ずつ変換する
+    const photos: { file: File; alt: string | null }[] = [];
+    for (const i of added) {
+      photos.push({ file: await toWebP(i.file), alt: emptyToNull(i.alt) });
+    }
+    const res = await addPhotos(diaryId, photos);
     saved = res.photos;
   }
 
@@ -121,6 +126,37 @@ function initialOrderAfterDelete(
   return initial
     .filter((i) => i.kind === "existing" && keep.has(i.key))
     .map((i) => (i.kind === "existing" ? i.id : ""));
+}
+
+// 写真を長辺 maxLongSide px 以下の WebP にする。もっと小さい写真も、大きさは変えずに WebP にする。
+// 向き（EXIF）は createImageBitmap が画素に反映するので、縦に撮った写真も正しい向きになる
+export async function toWebP(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file, {
+    imageOrientation: "from-image",
+  });
+  try {
+    const scale = Math.min(
+      1,
+      maxLongSide / Math.max(bitmap.width, bitmap.height),
+    );
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("canvas 2d context is not available");
+    }
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    const blob = await canvas.convertToBlob({
+      type: "image/webp",
+      quality: webpQuality,
+    });
+    const name = `${file.name.replace(/\.[^.]*$/, "")}.webp`;
+    return new File([blob], name, { type: blob.type });
+  } finally {
+    bitmap.close();
+  }
 }
 
 function emptyToNull(s: string | null): string | null {
