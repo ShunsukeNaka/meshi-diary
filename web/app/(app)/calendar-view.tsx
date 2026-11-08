@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { getCalendar, type CalendarDay, type CalendarMonth } from "@/lib/api";
+import {
+  getCalendar,
+  type CalendarDay,
+  type CalendarDiary,
+  type CalendarMonth,
+} from "@/lib/api";
 import {
   addMonths,
   calendarWeeks,
@@ -54,6 +59,8 @@ export default function CalendarView() {
 
   // 日付を選んだときの一覧も、GET /calendar の diaries から出す（日付ごとには問い合わせない）
   const calendar = useFetch(month, getCalendar);
+  const diaries =
+    calendar.data?.days.find((d) => d.date === date)?.diaries ?? [];
 
   return (
     <>
@@ -79,7 +86,12 @@ export default function CalendarView() {
           />
         </section>
         <section className="flex flex-col gap-5 lg:w-[380px] lg:pt-[60px]">
-          <DayEntries date={date} calendar={calendar} />
+          <DayEntries
+            date={date}
+            diaries={diaries}
+            loading={calendar.loading}
+            error={calendar.error}
+          />
           <Link
             href={`/diaries/new?date=${date}`}
             className="flex h-[52px] items-center justify-center rounded-app bg-text-primary px-5 text-base font-bold text-on-primary"
@@ -243,16 +255,18 @@ function DayCell({
   );
 }
 
+// 選んだ日の日記の一覧。データの取り方は親が決め、ここにはその日の日記だけを渡す
 function DayEntries({
   date,
-  calendar,
+  diaries,
+  loading,
+  error,
 }: {
   date: string;
-  calendar: CalendarResult;
+  diaries: CalendarDiary[];
+  loading: boolean;
+  error: unknown;
 }) {
-  const { data, error, loading } = calendar;
-  const diaries = data?.days.find((d) => d.date === date)?.diaries ?? [];
-
   return (
     <div className="flex flex-col gap-3">
       <h2 className="text-base font-bold text-text-primary">
