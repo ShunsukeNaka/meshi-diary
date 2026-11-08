@@ -592,7 +592,7 @@ Google アカウントを users に登録し、そのままログインした状
 
 ### `GET /calendar` — カレンダーの月の日記
 
-指定した月の、日記がある日とサムネイルを返す。カレンダー画面を開いたときと、月を切り替えたときに呼ぶ。
+指定した月の、日記がある日と、その日の日記の一覧を返す。カレンダー画面を開いたときと、月を切り替えたときに呼ぶ。
 
 - 認証: 要
 
@@ -619,15 +619,48 @@ Google アカウントを users に登録し、そのままログインした状
 | month | `string` | 指定した年と月（`YYYY-MM`） |
 | days | `day[]` | 日記がある日だけ。日付の古い順 |
 | days[].date | `date` | |
-| days[].diary_count | `integer` | その日の日記の数 |
-| days[].thumbnail_url | `string \| null` | サムネイルの署名付き URL（1時間で切れる）。その日の日記に写真が1枚もないときは `null` |
+| days[].diaries | `diary[]` | その日の日記。朝食・昼食・夕食・その他の順。同じ区分の中は作った順 |
+| days[].diaries[].id | `uuid` | |
+| days[].diaries[].info | `string \| null` | |
+| days[].diaries[].body_head | `string` | 本文の最初の30文字。30文字より短いときは全文 |
+| days[].diaries[].status | `enum` | |
+| days[].diaries[].thumbnail_url | `string \| null` | 1枚目の写真の署名付き URL（1時間で切れる）。写真がないときは `null` |
 
 ```json
 {
   "month": "2026-11",
   "days": [
-    { "date": "2026-11-02", "diary_count": 1, "thumbnail_url": null },
-    { "date": "2026-11-06", "diary_count": 2, "thumbnail_url": "https://<R2 の署名付き URL>" }
+    {
+      "date": "2026-11-02",
+      "diaries": [
+        {
+          "id": "8d4e2b1a-6c3f-4a7e-9b2d-1e0f3a4b5c6d",
+          "info": null,
+          "body_head": "家でカレーを作った。今日は、本格的なスパイスから作ってみたら",
+          "status": "DINNER",
+          "thumbnail_url": null
+        }
+      ]
+    },
+    {
+      "date": "2026-11-06",
+      "diaries": [
+        {
+          "id": "5c2a9f7e-1b3d-4e6f-8a9b-0c1d2e3f4a5b",
+          "info": "駅前のラーメン屋",
+          "body_head": "研究室のみんなで新しくできたお店へ。濃厚な豚骨スープで、替え",
+          "status": "LUNCH",
+          "thumbnail_url": "https://<R2 の署名付き URL>"
+        },
+        {
+          "id": "2f7b9c0d-4e1a-4b3c-8d5e-6f7a8b9c0d1e",
+          "info": null,
+          "body_head": "コンビニのおにぎりの梅干し入り。時間がなかったので、研究室で",
+          "status": "OTHER",
+          "thumbnail_url": null
+        }
+      ]
+    }
   ]
 }
 ```
@@ -640,8 +673,10 @@ Google アカウントを users に登録し、そのままログインした状
 
 #### 備考
 
-- サムネイルは、その日の日記を作った順に見て、写真がある最初の日記の1枚目（`position = 0`）
 - 日記がない日は `days` に入れない。フロントエンドは `days` にない日を、日記がない日として表示する
+- `diaries` は、カレンダー画面で日付を選んだときの一覧に使う。一覧に出す分だけを返す（全文は `GET /diaries/{id}`）
+- カレンダーのマスのサムネイルは、フロントエンドが `diaries` の順に見て、最初に `thumbnail_url` がある日記のものを使う
+- `body_head` の文字数は、バイトではなく文字で数える
 
 ---
 
