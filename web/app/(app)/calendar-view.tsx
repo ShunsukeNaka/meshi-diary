@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { getCalendar, listDiaries, type CalendarDay } from "@/lib/api";
+import {
+  getCalendar,
+  type CalendarDay,
+  type CalendarDiary,
+  type CalendarMonth,
+} from "@/lib/api";
 import {
   addMonths,
   calendarWeeks,
@@ -24,10 +29,19 @@ import LogoutButton from "./logout-button";
 // 詳細画面から戻ったときに、同じ月と日に戻れるようにするため。
 export default function CalendarView() {
   const params = useSearchParams();
-  const date = isDate(params.get("date")) ? params.get("date")! : todayJST();
+  const today = todayJST();
+  const paramDate = params.get("date");
   const month = isMonth(params.get("month"))
     ? params.get("month")!
-    : monthOf(date);
+    : monthOf(isDate(paramDate) ? paramDate : today);
+  // 選んだ日は、いつも表示している月の中にする。
+  // URL に日がない・表示している月の外のときは、今月なら今日、ほかの月なら1日にする
+  const date =
+    isDate(paramDate) && monthOf(paramDate) === month
+      ? paramDate
+      : monthOf(today) === month
+        ? today
+        : `${month}-01`;
 
   // ページを読み込み直さずに URL だけ変える（useSearchParams にも反映される）
   function setView(next: { month?: string; date?: string }) {
@@ -37,6 +51,16 @@ export default function CalendarView() {
     });
     window.history.replaceState(null, "", `?${q}`);
   }
+
+  // 月を切り替えたら、その月の1日を選ぶ
+  function showMonth(next: string) {
+    setView({ month: next, date: `${next}-01` });
+  }
+
+  // 日付を選んだときの一覧も、GET /calendar の diaries から出す（日付ごとには問い合わせない）
+  const calendar = useFetch(month, getCalendar);
+  const diaries =
+    calendar.data?.days.find((d) => d.date === date)?.diaries ?? [];
 
   return (
     <>
@@ -51,17 +75,23 @@ export default function CalendarView() {
         <section className="flex flex-col gap-5 lg:flex-1">
           <MonthHeader
             month={month}
-            onPrev={() => setView({ month: addMonths(month, -1) })}
-            onNext={() => setView({ month: addMonths(month, 1) })}
+            onPrev={() => showMonth(addMonths(month, -1))}
+            onNext={() => showMonth(addMonths(month, 1))}
           />
           <MonthGrid
             month={month}
+            calendar={calendar}
             selected={date}
             onSelect={(d) => setView({ date: d })}
           />
         </section>
         <section className="flex flex-col gap-5 lg:w-[380px] lg:pt-[60px]">
-          <DayEntries date={date} />
+          <DayEntries
+            date={date}
+            diaries={diaries}
+            loading={calendar.loading}
+            error={calendar.error}
+          />
           <Link
             href={`/diaries/new?date=${date}`}
             className="flex h-[52px] items-center justify-center rounded-app bg-text-primary px-5 text-base font-bold text-on-primary"
@@ -125,16 +155,24 @@ function IconButton({
   );
 }
 
+type CalendarResult = {
+  data?: CalendarMonth;
+  error?: unknown;
+  loading: boolean;
+};
+
 function MonthGrid({
   month,
+  calendar,
   selected,
   onSelect,
 }: {
   month: string;
+  calendar: CalendarResult;
   selected: string;
   onSelect: (date: string) => void;
 }) {
-  const { data, error } = useFetch(month, getCalendar);
+  const { data, error } = calendar;
   const days = new Map<string, CalendarDay>(data?.days.map((d) => [d.date, d]));
 
   return (
@@ -187,11 +225,13 @@ function DayCell({
   onSelect: () => void;
 }) {
   const n = Number(date.slice(8));
+  // 一覧の順（朝食・昼食・夕食・その他）で、最初に写真がある日記のサムネイル
+  const thumbnailURL = day?.diaries.find((d) => d.thumbnail_url)?.thumbnail_url;
   return (
     <button
       type="button"
       onClick={onSelect}
-      aria-label={`${formatMonthDay(date)}${day ? `、日記${day.diary_count}件` : ""}`}
+      aria-label={`${formatMonthDay(date)}${day ? `、日記${day.diaries.length}件` : ""}`}
       aria-pressed={selected}
       className={`flex h-[68px] flex-col items-center gap-[3px] rounded-lg p-1 lg:h-[100px] ${
         selected ? "outline-[1.5px] outline-text-primary outline-solid" : ""
@@ -202,9 +242,9 @@ function DayCell({
       >
         {n}
       </span>
-      {day?.thumbnail_url ? (
+      {thumbnailURL ? (
         <RemoteImage
-          src={day.thumbnail_url}
+          src={thumbnailURL}
           alt=""
           className="min-h-0 w-full flex-1 rounded-md object-cover"
         />
@@ -215,9 +255,18 @@ function DayCell({
   );
 }
 
-function DayEntries({ date }: { date: string }) {
-  const { data, error, loading } = useFetch(date, listDiaries);
-
+// 選んだ日の日記の一覧。データの取り方は親が決め、ここにはその日の日記だけを渡す
+function DayEntries({
+  date,
+  diaries,
+  loading,
+  error,
+}: {
+  date: string;
+  diaries: CalendarDiary[];
+  loading: boolean;
+  error: unknown;
+}) {
   return (
     <div className="flex flex-col gap-3">
       <h2 className="text-base font-bold text-text-primary">
@@ -227,13 +276,13 @@ function DayEntries({ date }: { date: string }) {
         <p role="alert" className="text-sm text-text-secondary">
           日記を読み込めませんでした
         </p>
-      ) : loading ? null : data && data.diaries.length === 0 ? (
+      ) : loading ? null : diaries.length === 0 ? (
         <p className="text-sm text-text-secondary">
           この日の日記はまだありません
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {data?.diaries.map((d) => (
+          {diaries.map((d) => (
             <li key={d.id}>
               <Link
                 href={`/diaries/${d.id}`}
@@ -254,7 +303,7 @@ function DayEntries({ date }: { date: string }) {
                     {d.info ? ` · ${d.info}` : ""}
                   </span>
                   <span className="truncate text-[13px] text-text-secondary">
-                    {d.body.split("\n")[0]}
+                    {d.body_head.split("\n")[0]}
                   </span>
                 </span>
                 <ChevronRightIcon
