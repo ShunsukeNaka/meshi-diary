@@ -25,12 +25,8 @@ type calendarDiary struct {
 
 // calendarDay はカレンダーの1日（docs/api.md の GET /calendar の days[]）。
 type calendarDay struct {
-	Date         string          `json:"date"`
-	ThumbnailURL *string         `json:"thumbnail_url"`
-	Diaries      []calendarDiary `json:"diaries"`
-
-	// thumbnailCreatedAt は ThumbnailURL にした写真の日記を作った日時。作った順で最初の日記を選ぶのに使う。
-	thumbnailCreatedAt time.Time
+	Date    string          `json:"date"`
+	Diaries []calendarDiary `json:"diaries"`
 }
 
 type calendarResponse struct {
@@ -74,11 +70,6 @@ func Calendar(d Deps) http.HandlerFunc {
 			item := calendarDiary{ID: diary.ID, Info: diary.Info, BodyHead: bodyHead(diary.Body), Status: diary.Status}
 			if url, ok := thumbnails[diary.ID]; ok {
 				item.ThumbnailURL = &url
-				// 日のサムネイルは、写真がある日記のうち、作った順で最初の日記の1枚目
-				if day.ThumbnailURL == nil || diary.CreatedAt.Before(day.thumbnailCreatedAt) {
-					day.ThumbnailURL = &url
-					day.thumbnailCreatedAt = diary.CreatedAt
-				}
 			}
 			day.Diaries = append(day.Diaries, item)
 		}

@@ -16,9 +16,8 @@ import (
 type calendarBody struct {
 	Month string `json:"month"`
 	Days  []struct {
-		Date         string  `json:"date"`
-		ThumbnailURL *string `json:"thumbnail_url"`
-		Diaries      []struct {
+		Date    string `json:"date"`
+		Diaries []struct {
 			ID           uuid.UUID         `json:"id"`
 			Info         *string           `json:"info"`
 			BodyHead     string            `json:"body_head"`
@@ -46,38 +45,31 @@ func TestCalendar(t *testing.T) {
 	userID := uuid.New()
 	at := func(h int) time.Time { return testTime.Add(time.Duration(h) * time.Hour) }
 
-	t.Run("returns days with diaries and their thumbnails", func(t *testing.T) {
+	t.Run("returns days of the month with their diaries", func(t *testing.T) {
 		e := newDiaryTestEnv(t)
 		e.addDiaryOn(userID, "2026-10-31", postgres.MealTypeDinner, at(0))
-		e.addDiaryOn(userID, "2026-11-02", postgres.MealTypeLunch, at(0))
-		// 11/6: 先に作った日記には写真がなく、あとの日記に写真がある
-		e.addDiaryOn(userID, "2026-11-06", postgres.MealTypeLunch, at(1))
+		nov2 := e.addDiaryOn(userID, "2026-11-02", postgres.MealTypeLunch, at(0))
+		noPhoto := e.addDiaryOn(userID, "2026-11-06", postgres.MealTypeLunch, at(1))
 		withPhoto := e.addDiaryOn(userID, "2026-11-06", postgres.MealTypeDinner, at(2))
 		photo := e.addPhoto(withPhoto.ID, 0)
 		e.addPhoto(withPhoto.ID, 1)
-		// 11/7: 2つとも写真があるときは、先に作った日記の写真
-		first := e.addDiaryOn(userID, "2026-11-07", postgres.MealTypeDinner, at(3))
-		second := e.addDiaryOn(userID, "2026-11-07", postgres.MealTypeBreakfast, at(4))
-		firstPhoto := e.addPhoto(first.ID, 0)
-		e.addPhoto(second.ID, 0)
 		e.addDiaryOn(userID, "2026-12-01", postgres.MealTypeOther, at(0))
 		e.addDiaryOn(uuid.New(), "2026-11-03", postgres.MealTypeOther, at(0))
 
 		body := getCalendar(t, e, userID, "2026-11")
-		if body.Month != "2026-11" || len(body.Days) != 3 {
+		if body.Month != "2026-11" || len(body.Days) != 2 {
 			t.Fatalf("body = %+v", body)
 		}
-		d2, d6, d7 := body.Days[0], body.Days[1], body.Days[2]
-		if d2.Date != "2026-11-02" || len(d2.Diaries) != 1 || d2.ThumbnailURL != nil {
+		d2, d6 := body.Days[0], body.Days[1]
+		if d2.Date != "2026-11-02" || len(d2.Diaries) != 1 || d2.Diaries[0].ID != nov2.ID || d2.Diaries[0].ThumbnailURL != nil {
 			t.Fatalf("11/02 = %+v", d2)
 		}
-		if d6.Date != "2026-11-06" || len(d6.Diaries) != 2 || d6.ThumbnailURL == nil || *d6.ThumbnailURL != "https://r2.test/"+photo.ObjectKey+"?expires=3600" {
+		if d6.Date != "2026-11-06" || len(d6.Diaries) != 2 || d6.Diaries[0].ID != noPhoto.ID || d6.Diaries[1].ID != withPhoto.ID {
 			t.Fatalf("11/06 = %+v", d6)
 		}
-		// 11/7 は朝食（あとで作った）が先に並ぶが、サムネイルは先に作った夕食の写真
-		if d7.Date != "2026-11-07" || len(d7.Diaries) != 2 || d7.Diaries[0].ID != second.ID ||
-			d7.ThumbnailURL == nil || *d7.ThumbnailURL != "https://r2.test/"+firstPhoto.ObjectKey+"?expires=3600" {
-			t.Fatalf("11/07 = %+v", d7)
+		// サムネイルは日記の1枚目の写真
+		if d6.Diaries[0].ThumbnailURL != nil || d6.Diaries[1].ThumbnailURL == nil || *d6.Diaries[1].ThumbnailURL != "https://r2.test/"+photo.ObjectKey+"?expires=3600" {
+			t.Fatalf("11/06 thumbnails = %+v", d6.Diaries)
 		}
 	})
 
