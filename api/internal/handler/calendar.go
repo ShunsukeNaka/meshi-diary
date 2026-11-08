@@ -11,11 +11,22 @@ import (
 	"github.com/ShunsukeNaka/meshi-diary/api/internal/infra/postgres"
 )
 
+// bodyHeadLength は一覧に出す本文の冒頭の文字数（docs/api.md の GET /calendar の body_head）。
+const bodyHeadLength = 30
+
+// calendarDiary はカレンダーの日の日記（docs/api.md の GET /calendar の days[].diaries[]）。一覧の表示に使う分だけ返す。
+type calendarDiary struct {
+	ID           uuid.UUID         `json:"id"`
+	Info         *string           `json:"info"`
+	BodyHead     string            `json:"body_head"`
+	Status       postgres.MealType `json:"status"`
+	ThumbnailURL *string           `json:"thumbnail_url"`
+}
+
 // calendarDay はカレンダーの1日（docs/api.md の GET /calendar の days[]）。
 type calendarDay struct {
-	Date         string  `json:"date"`
-	DiaryCount   int     `json:"diary_count"`
-	ThumbnailURL *string `json:"thumbnail_url"`
+	Date    string          `json:"date"`
+	Diaries []calendarDiary `json:"diaries"`
 }
 
 type calendarResponse struct {
@@ -23,7 +34,7 @@ type calendarResponse struct {
 	Days  []calendarDay `json:"days"`
 }
 
-// Calendar は指定した月の、日記がある日とサムネイルを返す（docs/api.md の GET /calendar）。Sessions.RequireSession で包んで使う。
+// Calendar は指定した月の、日記がある日と、その日の日記の一覧を返す（docs/api.md の GET /calendar）。Sessions.RequireSession で包んで使う。
 func Calendar(d Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := auth.UserID(r.Context())
@@ -48,23 +59,35 @@ func Calendar(d Deps) http.HandlerFunc {
 			return
 		}
 
-		// diaries は日付の古い順・同じ日は作った順なので、順に見ていけば日ごとにまとまる
+		// diaries は日付の古い順・同じ日は食事の区分の順なので、順に見ていけば日ごとにまとまる
 		days := []calendarDay{}
 		for _, diary := range diaries {
 			date := diary.EatenOn.Format(time.DateOnly)
 			if len(days) == 0 || days[len(days)-1].Date != date {
-				days = append(days, calendarDay{Date: date})
+				days = append(days, calendarDay{Date: date, Diaries: []calendarDiary{}})
 			}
 			day := &days[len(days)-1]
-			day.DiaryCount++
-			// 作った順に見て、写真がある最初の日記の1枚目をサムネイルにする
-			if url, ok := thumbnails[diary.ID]; ok && day.ThumbnailURL == nil {
-				day.ThumbnailURL = &url
+			item := calendarDiary{ID: diary.ID, Info: diary.Info, BodyHead: bodyHead(diary.Body), Status: diary.Status}
+			if url, ok := thumbnails[diary.ID]; ok {
+				item.ThumbnailURL = &url
 			}
+			day.Diaries = append(day.Diaries, item)
 		}
 
 		httpx.WriteJSON(w, http.StatusOK, calendarResponse{Month: month.Format("2006-01"), Days: days})
 	}
+}
+
+// bodyHead は本文の最初の bodyHeadLength 文字を返す。日本語が途中で切れないように、バイトではなく文字（rune）で数える。
+func bodyHead(body string) string {
+	n := 0
+	for i := range body {
+		if n == bodyHeadLength {
+			return body[:i]
+		}
+		n++
+	}
+	return body
 }
 
 // thumbnailURLs は日記ごとの1枚目の写真の表示用 URL を、日記の id をキーにして返す。写真がない日記はキーに入らない。

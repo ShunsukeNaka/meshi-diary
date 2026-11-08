@@ -94,12 +94,15 @@ func (f *fakeDiaries) ListBetween(_ context.Context, userID uuid.UUID, from, to 
 		if !a.EatenOn.Equal(b.EatenOn) {
 			return a.EatenOn.Before(b.EatenOn)
 		}
+		if a.Status != b.Status {
+			return mealOrder[a.Status] < mealOrder[b.Status]
+		}
 		return a.CreatedAt.Before(b.CreatedAt)
 	})
 	return diaries, nil
 }
 
-// mealOrder は enum meal_type の定義順。ListByDate の並び順の再現に使う。
+// mealOrder は enum meal_type の定義順。ListBetween・ListByDate の並び順の再現に使う。
 var mealOrder = map[postgres.MealType]int{
 	postgres.MealTypeBreakfast: 0, postgres.MealTypeLunch: 1, postgres.MealTypeDinner: 2, postgres.MealTypeOther: 3,
 }
