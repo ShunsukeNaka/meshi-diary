@@ -140,7 +140,7 @@ func TestDiaries(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := []uuid.UUID{nov2.ID, nov6a.ID, nov6b.ID, nov30.ID}
+		want := []uuid.UUID{nov2.ID, nov6b.ID, nov6a.ID, nov30.ID} // 11/6 は朝食（あとで作った）が先
 		if len(got) != len(want) {
 			t.Fatalf("got %d diaries, want %d: %+v", len(got), len(want), got)
 		}

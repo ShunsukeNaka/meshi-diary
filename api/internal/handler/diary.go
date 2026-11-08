@@ -28,7 +28,7 @@ type DiaryRepository interface {
 	Update(ctx context.Context, diary *postgres.Diary) error
 	// Delete は日記を削除する（写真の行も消える）。ないときは postgres.ErrNotFound を返す。
 	Delete(ctx context.Context, userID, id uuid.UUID) error
-	// ListBetween は食事をした日が from 以上 to 未満の日記を、日付の古い順・同じ日は作った順に返す。
+	// ListBetween は食事をした日が from 以上 to 未満の日記を、日付の古い順・同じ日は食事の区分の順・同じ区分の中は作った順に返す。
 	ListBetween(ctx context.Context, userID uuid.UUID, from, to time.Time) ([]postgres.Diary, error)
 	// ListByDate は date の日記を、食事の区分の順・同じ区分の中は作った順に返す。
 	ListByDate(ctx context.Context, userID uuid.UUID, date time.Time) ([]postgres.Diary, error)

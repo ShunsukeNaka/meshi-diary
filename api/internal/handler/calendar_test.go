@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,9 +17,29 @@ type calendarBody struct {
 	Month string `json:"month"`
 	Days  []struct {
 		Date         string  `json:"date"`
-		DiaryCount   int     `json:"diary_count"`
 		ThumbnailURL *string `json:"thumbnail_url"`
+		Diaries      []struct {
+			ID           uuid.UUID         `json:"id"`
+			Info         *string           `json:"info"`
+			BodyHead     string            `json:"body_head"`
+			Status       postgres.MealType `json:"status"`
+			ThumbnailURL *string           `json:"thumbnail_url"`
+		} `json:"diaries"`
 	} `json:"days"`
+}
+
+// getCalendar は GET /calendar?month= を呼び、200 であることを確かめてレスポンスを返す。
+func getCalendar(t *testing.T, e *diaryTestEnv, userID uuid.UUID, month string) calendarBody {
+	t.Helper()
+	rec := serve(e.router, http.MethodGet, "/calendar?month="+month, e.cookie(t, userID))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d (%s)", rec.Code, rec.Body.String())
+	}
+	var body calendarBody
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	return body
 }
 
 func TestCalendar(t *testing.T) {
@@ -42,26 +63,79 @@ func TestCalendar(t *testing.T) {
 		e.addDiaryOn(userID, "2026-12-01", postgres.MealTypeOther, at(0))
 		e.addDiaryOn(uuid.New(), "2026-11-03", postgres.MealTypeOther, at(0))
 
-		rec := serve(e.router, http.MethodGet, "/calendar?month=2026-11", e.cookie(t, userID))
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d (%s)", rec.Code, rec.Body.String())
-		}
-		var body calendarBody
-		if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
-			t.Fatal(err)
-		}
+		body := getCalendar(t, e, userID, "2026-11")
 		if body.Month != "2026-11" || len(body.Days) != 3 {
 			t.Fatalf("body = %+v", body)
 		}
 		d2, d6, d7 := body.Days[0], body.Days[1], body.Days[2]
-		if d2.Date != "2026-11-02" || d2.DiaryCount != 1 || d2.ThumbnailURL != nil {
+		if d2.Date != "2026-11-02" || len(d2.Diaries) != 1 || d2.ThumbnailURL != nil {
 			t.Fatalf("11/02 = %+v", d2)
 		}
-		if d6.Date != "2026-11-06" || d6.DiaryCount != 2 || d6.ThumbnailURL == nil || *d6.ThumbnailURL != "https://r2.test/"+photo.ObjectKey+"?expires=3600" {
+		if d6.Date != "2026-11-06" || len(d6.Diaries) != 2 || d6.ThumbnailURL == nil || *d6.ThumbnailURL != "https://r2.test/"+photo.ObjectKey+"?expires=3600" {
 			t.Fatalf("11/06 = %+v", d6)
 		}
-		if d7.Date != "2026-11-07" || d7.ThumbnailURL == nil || *d7.ThumbnailURL != "https://r2.test/"+firstPhoto.ObjectKey+"?expires=3600" {
+		// 11/7 は朝食（あとで作った）が先に並ぶが、サムネイルは先に作った夕食の写真
+		if d7.Date != "2026-11-07" || len(d7.Diaries) != 2 || d7.Diaries[0].ID != second.ID ||
+			d7.ThumbnailURL == nil || *d7.ThumbnailURL != "https://r2.test/"+firstPhoto.ObjectKey+"?expires=3600" {
 			t.Fatalf("11/07 = %+v", d7)
+		}
+	})
+
+	t.Run("returns diaries of each day in meal order", func(t *testing.T) {
+		e := newDiaryTestEnv(t)
+		dinner := e.addDiaryOn(userID, "2026-11-06", postgres.MealTypeDinner, at(0))
+		lunch1 := e.addDiaryOn(userID, "2026-11-06", postgres.MealTypeLunch, at(1))
+		breakfast := e.addDiaryOn(userID, "2026-11-06", postgres.MealTypeBreakfast, at(2))
+		lunch2 := e.addDiaryOn(userID, "2026-11-06", postgres.MealTypeLunch, at(3))
+		lunch2.Info = nil
+		e.diaries.add(lunch2)
+		photo := e.addPhoto(lunch1.ID, 0)
+
+		body := getCalendar(t, e, userID, "2026-11")
+		if len(body.Days) != 1 {
+			t.Fatalf("days = %+v", body.Days)
+		}
+		got := body.Days[0].Diaries
+		want := []uuid.UUID{breakfast.ID, lunch1.ID, lunch2.ID, dinner.ID}
+		if len(got) != len(want) {
+			t.Fatalf("diaries = %+v", got)
+		}
+		for i := range want {
+			if got[i].ID != want[i] {
+				t.Fatalf("diaries[%d] = %v, want %v", i, got[i].ID, want[i])
+			}
+		}
+		l1 := got[1]
+		if l1.Status != postgres.MealTypeLunch || l1.Info == nil || *l1.Info != "駅前のラーメン屋" || l1.BodyHead != "本文" ||
+			l1.ThumbnailURL == nil || *l1.ThumbnailURL != "https://r2.test/"+photo.ObjectKey+"?expires=3600" {
+			t.Fatalf("lunch1 = %+v", l1)
+		}
+		if got[2].Info != nil || got[2].ThumbnailURL != nil {
+			t.Fatalf("lunch2 = %+v", got[2])
+		}
+	})
+
+	t.Run("body_head is the first 30 characters of the body", func(t *testing.T) {
+		e := newDiaryTestEnv(t)
+		long := e.addDiaryOn(userID, "2026-11-06", postgres.MealTypeBreakfast, at(0))
+		long.Body = "研究室のみんなで新しくできたお店へ。濃厚な豚骨スープで、替え玉までしてしまった。"
+		e.diaries.add(long)
+		exact := e.addDiaryOn(userID, "2026-11-06", postgres.MealTypeLunch, at(1))
+		exact.Body = strings.Repeat("あ", 30)
+		e.diaries.add(exact)
+		empty := e.addDiaryOn(userID, "2026-11-06", postgres.MealTypeDinner, at(2))
+		empty.Body = ""
+		e.diaries.add(empty)
+
+		got := getCalendar(t, e, userID, "2026-11").Days[0].Diaries
+		if got[0].BodyHead != "研究室のみんなで新しくできたお店へ。濃厚な豚骨スープで、替え" {
+			t.Errorf("long = %q", got[0].BodyHead)
+		}
+		if got[1].BodyHead != strings.Repeat("あ", 30) {
+			t.Errorf("exact = %q", got[1].BodyHead)
+		}
+		if got[2].BodyHead != "" {
+			t.Errorf("empty = %q", got[2].BodyHead)
 		}
 	})
 
