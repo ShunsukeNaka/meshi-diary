@@ -89,26 +89,22 @@ export type Photo = {
 
 export type DiaryDetail = Diary & { photos: Photo[] };
 
-export type DiaryListItem = Diary & { thumbnail_url: string | null };
-
-export type CalendarDay = {
-  date: string;
-  diary_count: number;
+// カレンダーの日の日記。一覧に出す分だけ（docs/api.md の GET /calendar の days[].diaries[]）
+export type CalendarDiary = Pick<Diary, "id" | "status" | "info"> & {
+  body_head: string;
   thumbnail_url: string | null;
 };
 
+export type CalendarDay = {
+  date: string;
+  diaries: CalendarDiary[];
+};
+
+export type CalendarMonth = { month: string; days: CalendarDay[] };
+
 // month は YYYY-MM
 export function getCalendar(month: string) {
-  return request<{ month: string; days: CalendarDay[] }>(
-    `/calendar?month=${encodeURIComponent(month)}`,
-  );
-}
-
-// date は YYYY-MM-DD
-export function listDiaries(date: string) {
-  return request<{ date: string; diaries: DiaryListItem[] }>(
-    `/diaries?date=${encodeURIComponent(date)}`,
-  );
+  return request<CalendarMonth>(`/calendar?month=${encodeURIComponent(month)}`);
 }
 
 export function getDiary(id: string) {

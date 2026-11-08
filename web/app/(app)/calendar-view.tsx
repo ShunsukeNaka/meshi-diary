@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { getCalendar, listDiaries, type CalendarDay } from "@/lib/api";
+import { getCalendar, type CalendarDay, type CalendarMonth } from "@/lib/api";
 import {
   addMonths,
   calendarWeeks,
@@ -38,6 +38,16 @@ export default function CalendarView() {
     window.history.replaceState(null, "", `?${q}`);
   }
 
+  // 日付を選んだときの一覧も、GET /calendar の diaries から出す（日付ごとには問い合わせない）。
+  // 月を切り替えても選んだ日は変わらないので、選んだ日が別の月のときは、その月の分も取る。
+  const calendar = useFetch(month, getCalendar);
+  const dateMonth = monthOf(date);
+  const otherMonth = useFetch(
+    dateMonth === month ? null : dateMonth,
+    getCalendar,
+  );
+  const dateCalendar = dateMonth === month ? calendar : otherMonth;
+
   return (
     <>
       {/* PC だけのトップバー。スマホでは月の切り替えの右にログアウトを置く */}
@@ -56,12 +66,13 @@ export default function CalendarView() {
           />
           <MonthGrid
             month={month}
+            calendar={calendar}
             selected={date}
             onSelect={(d) => setView({ date: d })}
           />
         </section>
         <section className="flex flex-col gap-5 lg:w-[380px] lg:pt-[60px]">
-          <DayEntries date={date} />
+          <DayEntries date={date} calendar={dateCalendar} />
           <Link
             href={`/diaries/new?date=${date}`}
             className="flex h-[52px] items-center justify-center rounded-app bg-text-primary px-5 text-base font-bold text-on-primary"
@@ -125,16 +136,24 @@ function IconButton({
   );
 }
 
+type CalendarResult = {
+  data?: CalendarMonth;
+  error?: unknown;
+  loading: boolean;
+};
+
 function MonthGrid({
   month,
+  calendar,
   selected,
   onSelect,
 }: {
   month: string;
+  calendar: CalendarResult;
   selected: string;
   onSelect: (date: string) => void;
 }) {
-  const { data, error } = useFetch(month, getCalendar);
+  const { data, error } = calendar;
   const days = new Map<string, CalendarDay>(data?.days.map((d) => [d.date, d]));
 
   return (
@@ -187,11 +206,13 @@ function DayCell({
   onSelect: () => void;
 }) {
   const n = Number(date.slice(8));
+  // 一覧の順（朝食・昼食・夕食・その他）で、最初に写真がある日記のサムネイル
+  const thumbnailURL = day?.diaries.find((d) => d.thumbnail_url)?.thumbnail_url;
   return (
     <button
       type="button"
       onClick={onSelect}
-      aria-label={`${formatMonthDay(date)}${day ? `、日記${day.diary_count}件` : ""}`}
+      aria-label={`${formatMonthDay(date)}${day ? `、日記${day.diaries.length}件` : ""}`}
       aria-pressed={selected}
       className={`flex h-[68px] flex-col items-center gap-[3px] rounded-lg p-1 lg:h-[100px] ${
         selected ? "outline-[1.5px] outline-text-primary outline-solid" : ""
@@ -202,9 +223,9 @@ function DayCell({
       >
         {n}
       </span>
-      {day?.thumbnail_url ? (
+      {thumbnailURL ? (
         <RemoteImage
-          src={day.thumbnail_url}
+          src={thumbnailURL}
           alt=""
           className="min-h-0 w-full flex-1 rounded-md object-cover"
         />
@@ -215,8 +236,15 @@ function DayCell({
   );
 }
 
-function DayEntries({ date }: { date: string }) {
-  const { data, error, loading } = useFetch(date, listDiaries);
+function DayEntries({
+  date,
+  calendar,
+}: {
+  date: string;
+  calendar: CalendarResult;
+}) {
+  const { data, error, loading } = calendar;
+  const diaries = data?.days.find((d) => d.date === date)?.diaries ?? [];
 
   return (
     <div className="flex flex-col gap-3">
@@ -227,13 +255,13 @@ function DayEntries({ date }: { date: string }) {
         <p role="alert" className="text-sm text-text-secondary">
           日記を読み込めませんでした
         </p>
-      ) : loading ? null : data && data.diaries.length === 0 ? (
+      ) : loading ? null : diaries.length === 0 ? (
         <p className="text-sm text-text-secondary">
           この日の日記はまだありません
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {data?.diaries.map((d) => (
+          {diaries.map((d) => (
             <li key={d.id}>
               <Link
                 href={`/diaries/${d.id}`}
@@ -254,7 +282,7 @@ function DayEntries({ date }: { date: string }) {
                     {d.info ? ` · ${d.info}` : ""}
                   </span>
                   <span className="truncate text-[13px] text-text-secondary">
-                    {d.body.split("\n")[0]}
+                    {d.body_head.split("\n")[0]}
                   </span>
                 </span>
                 <ChevronRightIcon
