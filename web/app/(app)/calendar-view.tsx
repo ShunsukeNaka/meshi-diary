@@ -24,10 +24,19 @@ import LogoutButton from "./logout-button";
 // 詳細画面から戻ったときに、同じ月と日に戻れるようにするため。
 export default function CalendarView() {
   const params = useSearchParams();
-  const date = isDate(params.get("date")) ? params.get("date")! : todayJST();
+  const today = todayJST();
+  const paramDate = params.get("date");
   const month = isMonth(params.get("month"))
     ? params.get("month")!
-    : monthOf(date);
+    : monthOf(isDate(paramDate) ? paramDate : today);
+  // 選んだ日は、いつも表示している月の中にする。
+  // URL に日がない・表示している月の外のときは、今月なら今日、ほかの月なら1日にする
+  const date =
+    isDate(paramDate) && monthOf(paramDate) === month
+      ? paramDate
+      : monthOf(today) === month
+        ? today
+        : `${month}-01`;
 
   // ページを読み込み直さずに URL だけ変える（useSearchParams にも反映される）
   function setView(next: { month?: string; date?: string }) {
@@ -38,15 +47,13 @@ export default function CalendarView() {
     window.history.replaceState(null, "", `?${q}`);
   }
 
-  // 日付を選んだときの一覧も、GET /calendar の diaries から出す（日付ごとには問い合わせない）。
-  // 月を切り替えても選んだ日は変わらないので、選んだ日が別の月のときは、その月の分も取る。
+  // 月を切り替えたら、その月の1日を選ぶ
+  function showMonth(next: string) {
+    setView({ month: next, date: `${next}-01` });
+  }
+
+  // 日付を選んだときの一覧も、GET /calendar の diaries から出す（日付ごとには問い合わせない）
   const calendar = useFetch(month, getCalendar);
-  const dateMonth = monthOf(date);
-  const otherMonth = useFetch(
-    dateMonth === month ? null : dateMonth,
-    getCalendar,
-  );
-  const dateCalendar = dateMonth === month ? calendar : otherMonth;
 
   return (
     <>
@@ -61,8 +68,8 @@ export default function CalendarView() {
         <section className="flex flex-col gap-5 lg:flex-1">
           <MonthHeader
             month={month}
-            onPrev={() => setView({ month: addMonths(month, -1) })}
-            onNext={() => setView({ month: addMonths(month, 1) })}
+            onPrev={() => showMonth(addMonths(month, -1))}
+            onNext={() => showMonth(addMonths(month, 1))}
           />
           <MonthGrid
             month={month}
@@ -72,7 +79,7 @@ export default function CalendarView() {
           />
         </section>
         <section className="flex flex-col gap-5 lg:w-[380px] lg:pt-[60px]">
-          <DayEntries date={date} calendar={dateCalendar} />
+          <DayEntries date={date} calendar={calendar} />
           <Link
             href={`/diaries/new?date=${date}`}
             className="flex h-[52px] items-center justify-center rounded-app bg-text-primary px-5 text-base font-bold text-on-primary"
