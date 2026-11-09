@@ -68,6 +68,19 @@ npm run dev
 
 開発中のフロントエンドは、`/meshi-diary-api/*` を `http://localhost:8080` に中継する（`API_BASE_URL` で変えられる）。
 
+## プロジェクトの印象に残っているところたち
+### APIサーバー、DB間の通信速度の改善
+- [GitHub Issue カレンダーでサイドに日記の一覧が表示されるのが遅い](https://github.com/ShunsukeNaka/meshi-diary/issues/95)
+  - [Infra: DB（Neon）を API サーバーに近いリージョンへ移す](https://github.com/ShunsukeNaka/meshi-diary/issues/97)
+  - [API: DB 接続の生存確認（Ping）を減らす](https://github.com/ShunsukeNaka/meshi-diary/issues/98)
+
+### カレンダー表示画面で一か月分のデータを一括取得
+- [API・Web: カレンダーで1か月分の日記を一括で取得する](https://github.com/ShunsukeNaka/meshi-diary/issues/102)
+
+### 写真のアップロードにかかる時間の改善
+- [画像のアップロードに時間がかかったり失敗したりする。](https://github.com/ShunsukeNaka/meshi-diary/issues/107)
+  - [Web: 写真をブラウザで縮めてから送る](https://github.com/ShunsukeNaka/meshi-diary/issues/109)
+
 ## 開発の進め方
 
 - 作るもの・直すものは issue に書く（[テンプレート](.github/ISSUE_TEMPLATE/task.md)）
