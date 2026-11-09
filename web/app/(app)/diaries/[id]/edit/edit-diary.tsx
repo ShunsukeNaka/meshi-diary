@@ -1,12 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ApiError, getDiary } from "@/lib/api";
 import { useFetch } from "@/lib/use-fetch";
 import DiaryEditor from "../../diary-editor";
 
+// cacheComponents では、前に開いたときの入力や読み込んだ日記が残ったまま画面が出る。
+// ボタンやリンクから開いたときは、保存されている内容を読み込み直して作り直す
+// （ブラウザの戻る・進むで来たときは、書きかけを残す）
 export default function EditDiary() {
+  const { bfcacheId } = useRouter();
+  return <EditDiaryForm key={bfcacheId} />;
+}
+
+function EditDiaryForm() {
   const { id } = useParams<{ id: string }>();
   const { data, error } = useFetch(id, getDiary);
 
