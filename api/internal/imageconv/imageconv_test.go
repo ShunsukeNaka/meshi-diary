@@ -2,6 +2,7 @@ package imageconv
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"image"
 	"image/color"
@@ -71,6 +72,33 @@ func TestToWebP(t *testing.T) {
 		})
 	}
 
+	t.Run("plain WebP is returned as is", func(t *testing.T) {
+		data := encode(t, "webp", testImage(64, 48))
+		if out := mustToWebP(t, data); !bytes.Equal(out, data) {
+			t.Fatalf("webp was re-encoded (%d bytes -> %d bytes)", len(data), len(out))
+		}
+	})
+
+	for _, chunk := range []string{"EXIF", "XMP "} {
+		t.Run("WebP with "+chunk+" is re-encoded without it", func(t *testing.T) {
+			data := withMetadata(t, encode(t, "webp", testImage(64, 48)), chunk, 64, 48)
+			out := mustToWebP(t, data)
+			if bytes.Equal(out, data) || bytes.Contains(out, []byte(chunk)) {
+				t.Fatalf("%s chunk is kept", chunk)
+			}
+			if b := decodeWebP(t, out).Bounds(); b.Dx() != 64 || b.Dy() != 48 {
+				t.Fatalf("size = %v, want 64x48", b)
+			}
+		})
+	}
+
+	t.Run("broken WebP", func(t *testing.T) {
+		data := encode(t, "webp", testImage(64, 48))
+		if _, err := ToWebP(data[:len(data)/2]); !errors.Is(err, ErrUnsupportedFormat) {
+			t.Fatalf("err = %v, want ErrUnsupportedFormat", err)
+		}
+	})
+
 	t.Run("JPEG EXIF orientation is applied", func(t *testing.T) {
 		data := withOrientation(t, encode(t, "jpeg", testImage(64, 48)), 6) // 6 = 時計回りに90度回して表示する
 		img := decodeWebP(t, mustToWebP(t, data))
@@ -120,6 +148,34 @@ func withOrientation(t *testing.T, jpg []byte, orientation byte) []byte {
 	n := len(payload) + 2
 	app1 := append([]byte{0xFF, 0xE1, byte(n >> 8), byte(n)}, payload...)
 	return append(append([]byte{0xFF, 0xD8}, app1...), jpg[2:]...)
+}
+
+// withMetadata は、拡張形式（VP8X）にした WebP の最後に、chunk（"EXIF" か "XMP "）のチャンクを足す。
+func withMetadata(t *testing.T, simple []byte, chunk string, w, h int) []byte {
+	t.Helper()
+	flag := map[string]byte{"EXIF": 0x08, "XMP ": 0x04}[chunk]
+	vp8x := []byte{flag, 0, 0, 0,
+		byte(w - 1), byte((w - 1) >> 8), byte((w - 1) >> 16),
+		byte(h - 1), byte((h - 1) >> 8), byte((h - 1) >> 16)}
+	var body bytes.Buffer
+	body.WriteString("WEBP")
+	writeChunk(&body, "VP8X", vp8x)
+	body.Write(simple[12:]) // もとの画像のチャンク（VP8 か VP8L）
+	writeChunk(&body, chunk, []byte("GPS 35.0,135.0"))
+	var out bytes.Buffer
+	out.WriteString("RIFF")
+	binary.Write(&out, binary.LittleEndian, uint32(body.Len()))
+	out.Write(body.Bytes())
+	return out.Bytes()
+}
+
+func writeChunk(buf *bytes.Buffer, name string, data []byte) {
+	buf.WriteString(name)
+	binary.Write(buf, binary.LittleEndian, uint32(len(data)))
+	buf.Write(data)
+	if len(data)%2 == 1 {
+		buf.WriteByte(0)
+	}
 }
 
 // TestToWebPSpeed は、スマホの写真くらいの大きさ（4000x3000）の変換にかかる時間を記録する。

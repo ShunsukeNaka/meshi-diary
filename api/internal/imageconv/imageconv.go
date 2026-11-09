@@ -3,6 +3,7 @@ package imageconv
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"image"
@@ -37,8 +38,10 @@ var supported = map[string]bool{
 
 // ToWebP は JPEG・PNG・WebP の画像を WebP にする。大きさは変えない。
 // JPEG の EXIF の向き（スマホで縦に撮った写真など）は、画素を回転させて反映する（WebP には EXIF を残さないため）。
+// WebP は、EXIF・XMP・アニメーションがなければ、変換し直さずにそのまま返す（圧縮を二度すると画質が落ちるため）。
 func ToWebP(data []byte) ([]byte, error) {
-	if !supported[http.DetectContentType(data)] {
+	contentType := http.DetectContentType(data)
+	if !supported[contentType] {
 		return nil, ErrUnsupportedFormat
 	}
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
@@ -47,6 +50,14 @@ func ToWebP(data []byte) ([]byte, error) {
 	}
 	if cfg.Width > maxDimension || cfg.Height > maxDimension {
 		return nil, ErrTooLarge
+	}
+
+	if contentType == "image/webp" && isPlainWebP(data) {
+		// 壊れていないかは、最後まで読んで確かめる
+		if _, err := webp.Decode(bytes.NewReader(data)); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrUnsupportedFormat, err)
+		}
+		return data, nil
 	}
 
 	img, err := imaging.Decode(bytes.NewReader(data), imaging.AutoOrientation(true))
@@ -58,4 +69,19 @@ func ToWebP(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("encode webp: %w", err)
 	}
 	return out.Bytes(), nil
+}
+
+// isPlainWebP は、WebP（RIFF）のチャンクに EXIF・XMP（撮影場所などが入りうる）と
+// アニメーションがないかを確かめる。ブラウザの canvas で書き出した WebP はこれに当てはまる。
+func isPlainWebP(data []byte) bool {
+	// 先頭 12 バイトは "RIFF"、ファイルの大きさ、"WEBP"。そのあとにチャンク（4 文字の名前、大きさ、中身）が続く
+	for p := 12; p+8 <= len(data); {
+		switch string(data[p : p+4]) {
+		case "EXIF", "XMP ", "ANIM", "ANMF":
+			return false
+		}
+		size := int(binary.LittleEndian.Uint32(data[p+4 : p+8]))
+		p += 8 + size + size%2 // 中身が奇数バイトのときは、1 バイト詰め物がある
+	}
+	return true
 }

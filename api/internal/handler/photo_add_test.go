@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gen2brain/webp"
 	"github.com/google/uuid"
 )
 
@@ -29,6 +30,15 @@ func testPNG(t *testing.T) []byte {
 	t.Helper()
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 16, 16))); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func testWebP(t *testing.T) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := webp.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 20, 10))); err != nil {
 		t.Fatal(err)
 	}
 	return buf.Bytes()
@@ -103,6 +113,24 @@ func TestAddPhotos(t *testing.T) {
 			if !strings.Contains(p.URL, key) {
 				t.Fatalf("url = %q", p.URL)
 			}
+		}
+	})
+
+	t.Run("saves WebP as sent", func(t *testing.T) {
+		e := newDiaryTestEnv(t)
+		d := e.addDiary(userID)
+		sent := testWebP(t)
+		rec := uploadPhotos(t, e, "/diaries/"+d.ID.String()+"/photos", e.cookie(t, userID), [][]byte{sent}, nil)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("status = %d (%s)", rec.Code, rec.Body.String())
+		}
+		var body photosBody
+		if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		key := "photos/" + d.ID.String() + "/" + body.Photos[0].ID + ".webp"
+		if !bytes.Equal(e.storage.objects[key], sent) {
+			t.Fatalf("file %s is not the sent webp", key)
 		}
 	})
 
