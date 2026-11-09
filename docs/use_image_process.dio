@@ -8,7 +8,7 @@
                     <mxGeometry height="1100" width="940" as="geometry"/>
                 </mxCell>
                 <mxCell id="f7t_NHCzKovplJWiO31u-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
-                    <mxGeometry height="120" width="356.5" x="192.66" y="10" as="geometry"/>
+                    <mxGeometry height="160" width="356.5" x="192.66" y="10" as="geometry"/>
                 </mxCell>
                 <mxCell id="UJssg62fxMqCeQore2Dx-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
                     <mxGeometry height="300" width="474.54" x="345.46" y="300" as="geometry"/>
@@ -16,8 +16,8 @@
                 <mxCell id="5sMZAB9Ay4sddPeGSgBg-1" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;RDB&lt;/font&gt;" vertex="1">
                     <mxGeometry height="110" width="120" x="491.76" y="689" as="geometry"/>
                 </mxCell>
-                <mxCell id="5sMZAB9Ay4sddPeGSgBg-4" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;物理サーバー / Debian&lt;/font&gt;" vertex="1">
-                    <mxGeometry height="30" width="250" x="355" y="300" as="geometry"/>
+                <mxCell id="5sMZAB9Ay4sddPeGSgBg-4" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;物理サーバー / Debian&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="30" width="250" x="560" y="566" as="geometry"/>
                 </mxCell>
                 <mxCell id="5sMZAB9Ay4sddPeGSgBg-5" parent="1" style="shape=mxgraph.signs.tech.computer;html=1;pointerEvents=1;fillColor=#000000;strokeColor=none;verticalLabelPosition=bottom;verticalAlign=top;align=center;labelPerimeter=1;" value="" vertex="1">
                     <mxGeometry height="98" width="98" x="262" y="21" as="geometry"/>
@@ -59,13 +59,23 @@
                         <mxPoint x="260" y="140" as="sourcePoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="f7t_NHCzKovplJWiO31u-11" edge="1" parent="1" source="f7t_NHCzKovplJWiO31u-6" style="edgeStyle=none;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.2476;entryY=0;entryDx=0;entryDy=0;startArrow=classic;startFill=1;endArrow=classic;endFill=1;labelBackgroundColor=default;" target="5sMZAB9Ay4sddPeGSgBg-13" value="② APIリクエスト（IDトークン付き）&lt;br&gt;④ 署名付きURLを返す">
-                    <mxGeometry relative="1" as="geometry"/>
+                <mxCell id="f7t_NHCzKovplJWiO31u-11" edge="1" parent="1" source="f7t_NHCzKovplJWiO31u-6" style="edgeStyle=none;html=1;exitX=0.6377;exitY=1;exitDx=0;exitDy=0;entryX=0.1375;entryY=0;entryDx=0;entryDy=0;startArrow=classic;startFill=1;endArrow=classic;endFill=1;labelBackgroundColor=default;fontSize=11;align=right;" target="5sMZAB9Ay4sddPeGSgBg-13" value="ログイン&lt;br&gt;② IDトークン&lt;br&gt;③ セッションCookie">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="-50" as="offset"/>
+                    </mxGeometry>
                 </mxCell>
-                <mxCell id="7P7U7mlwA_4OtRwdLn7I-3" parent="1" style="shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;" value="⑤ 署名付きURLで&lt;div&gt;写真を直接取得&lt;/div&gt;" vertex="1">
+                <mxCell id="edge-session" edge="1" parent="1" source="f7t_NHCzKovplJWiO31u-6" style="edgeStyle=none;html=1;exitX=0.9743;exitY=1;exitDx=0;exitDy=0;entryX=0.4676;entryY=0;entryDx=0;entryDy=0;startArrow=classic;startFill=1;endArrow=classic;endFill=1;labelBackgroundColor=default;fontSize=11;align=left;" target="5sMZAB9Ay4sddPeGSgBg-13" value="セッションCookie付き&lt;br&gt;⑤ 写真（WebP）&lt;br&gt;⑦ 日記の取得&lt;br&gt;⑧ 署名付きURL">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="60" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="browser-note" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;" value="④ ブラウザで写真を長辺 2048px 以下の WebP に縮める" vertex="1">
+                    <mxGeometry height="30" width="340" x="200" y="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="7P7U7mlwA_4OtRwdLn7I-3" parent="1" style="shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;" value="⑨ 署名付きURLで&lt;div&gt;写真を直接取得&lt;/div&gt;" vertex="1">
                     <mxGeometry height="60" width="120" x="200" y="580" as="geometry"/>
                 </mxCell>
-                <mxCell id="7P7U7mlwA_4OtRwdLn7I-5" parent="1" style="shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;" value="写真の&lt;div&gt;アップロード&lt;/div&gt;" vertex="1">
+                <mxCell id="7P7U7mlwA_4OtRwdLn7I-5" parent="1" style="shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;" value="⑥ 写真を保存&lt;div&gt;（WebP）&lt;/div&gt;" vertex="1">
                     <mxGeometry height="60" width="120" x="303.72" y="680" as="geometry"/>
                 </mxCell>
                 <mxCell id="google-box" parent="1" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;" value="" vertex="1">
@@ -74,8 +84,8 @@
                 <mxCell id="google-label" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;Google（外部サービス）&lt;/font&gt;" vertex="1">
                     <mxGeometry height="25" width="200" x="690" y="15" as="geometry"/>
                 </mxCell>
-                <mxCell id="api-note" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;" value="・IDトークンを検証し、自分のアカウントか確認（③）&lt;br&gt;・R2のアクセスキーで署名付きURLを生成（④）" vertex="1">
-                    <mxGeometry height="60" width="335" x="385" y="395" as="geometry"/>
+                <mxCell id="api-note" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;" value="・IDトークンを検証し、セッションCookieを発行（③）&lt;br&gt;・WebPの写真は変換せずにR2に保存（⑥）&lt;br&gt;・R2のアクセスキーで署名付きURLを生成（⑧）" vertex="1">
+                    <mxGeometry height="70" width="335" x="385" y="385" as="geometry"/>
                 </mxCell>
                 <mxCell id="edge-login" edge="1" parent="1" source="f7t_NHCzKovplJWiO31u-6" style="edgeStyle=none;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;startArrow=classic;startFill=1;endArrow=classic;endFill=1;labelBackgroundColor=default;fontSize=11;" target="google-box" value="① Googleでログイン&lt;br&gt;IDトークン取得">
                     <mxGeometry relative="1" as="geometry"/>
@@ -87,8 +97,8 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="legend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;fontSize=12;arcSize=5;" value="&lt;b&gt;写真を表示するまでの流れ&lt;/b&gt;&lt;br&gt;① Googleでログインし、IDトークンを取得&lt;br&gt;② IDトークンを付けてAPIにリクエスト&lt;br&gt;③ APIがIDトークンを検証し、自分のアカウントか確認&lt;br&gt;④ 認証OKのときだけ、期限付き（数分）の署名付きURLを発行&lt;br&gt;⑤ 署名付きURLでR2から写真を直接取得&lt;br&gt;&lt;br&gt;※ R2自体はGoogle認証を確認しない。APIが認証済みのときだけ署名することで守る" vertex="1">
-                    <mxGeometry height="190" width="300" x="640" y="650" as="geometry"/>
+                <mxCell id="legend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=10;fontSize=12;arcSize=5;" value="&lt;b&gt;ログイン&lt;/b&gt;&lt;br&gt;① Googleでログインし、IDトークンを取得&lt;br&gt;② IDトークンをAPIに送る（POST /login）&lt;br&gt;③ IDトークンを検証し、セッションCookieを返す&lt;br&gt;&lt;br&gt;&lt;b&gt;写真のアップロード&lt;/b&gt;&lt;br&gt;④ ブラウザで長辺2048px以下のWebPに縮める&lt;br&gt;⑤ WebPをAPIに送る&lt;br&gt;⑥ APIがR2に保存する（WebPは変換しない）&lt;br&gt;&lt;br&gt;&lt;b&gt;写真の表示&lt;/b&gt;&lt;br&gt;⑦ APIから日記を取得&lt;br&gt;⑧ APIが期限付き（5分）の署名付きURLを返す&lt;br&gt;⑨ 署名付きURLでR2から写真を直接取得&lt;br&gt;&lt;br&gt;※ ログインのあとは、セッションCookieでAPIを呼ぶ（IDトークンは送らない）&lt;br&gt;※ APIへのリクエストはVercelを通る&lt;br&gt;※ R2自体はGoogle認証を確認しない。APIがログイン済みのときだけ署名することで守る" vertex="1">
+                    <mxGeometry height="320" width="310" x="625" y="650" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
