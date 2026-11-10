@@ -30,6 +30,20 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Service Worker は古いものが残らないよう、毎回取り直させる
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     const base = apiBaseUrl();
     if (!base) {
