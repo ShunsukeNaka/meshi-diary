@@ -15,7 +15,7 @@ export const acceptedTypes = ["image/jpeg", "image/png", "image/webp"];
 export const maxLongSide = 2048;
 export const webpQuality = 0.8;
 
-// 画面の写真。保存ずみ（existing）と、選んだだけでまだ送っていない（added）がある
+// 編集画面に並べる写真1枚。保存ずみ（existing）と、選んだだけでまだ送っていない（added）がある
 export type PhotoItem =
   | {
       key: string;
@@ -44,7 +44,9 @@ export function fromSaved(photos: Photo[]): PhotoItem[] {
   }));
 }
 
-// 選んだ写真を、画面の写真にする。プレビュー用の URL は、使い終わったら URL.revokeObjectURL で解放する
+// 選んだ写真（File）から、編集画面に並べる写真（PhotoItem の added）を作る。
+// 表示用に URL.createObjectURL で一時的な URL を作り、写真を見分ける key にも使う。
+// URL のあいだはファイルの中身がメモリに残るので、使い終わったら URL.revokeObjectURL で解放する
 export function toAddedItem(file: File): PhotoItem & { kind: "added" } {
   const previewUrl = URL.createObjectURL(file);
   return { key: previewUrl, kind: "added", file, previewUrl, alt: null };
