@@ -107,6 +107,16 @@ export function getCalendar(month: string) {
   return request<CalendarMonth>(`/calendar?month=${encodeURIComponent(month)}`);
 }
 
+// その日の日記（docs/api.md の GET /diaries の diaries[]）
+export type DayDiary = Diary & { thumbnail_url: string | null };
+
+// date は YYYY-MM-DD
+export function listDiaries(date: string) {
+  return request<{ date: string; diaries: DayDiary[] }>(
+    `/diaries?date=${encodeURIComponent(date)}`,
+  );
+}
+
 export function getDiary(id: string) {
   return request<{ diary: DiaryDetail }>(`/diaries/${encodeURIComponent(id)}`);
 }
