@@ -59,14 +59,14 @@ func decodeWebP(t *testing.T, data []byte) image.Image {
 	return img
 }
 
-func TestToWebP(t *testing.T) {
+func TestConvert(t *testing.T) {
 	for _, format := range []string{"jpeg", "png", "webp"} {
 		t.Run(format+" keeps the size", func(t *testing.T) {
-			out, err := ToWebP(encode(t, format, testImage(64, 48)))
+			out, err := Convert(encode(t, format, testImage(64, 48)))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if b := decodeWebP(t, out).Bounds(); b.Dx() != 64 || b.Dy() != 48 {
+			if b := decodeWebP(t, out.Photo).Bounds(); b.Dx() != 64 || b.Dy() != 48 {
 				t.Fatalf("size = %v, want 64x48", b)
 			}
 		})
@@ -94,7 +94,7 @@ func TestToWebP(t *testing.T) {
 
 	t.Run("broken WebP", func(t *testing.T) {
 		data := encode(t, "webp", testImage(64, 48))
-		if _, err := ToWebP(data[:len(data)/2]); !errors.Is(err, ErrUnsupportedFormat) {
+		if _, err := Convert(data[:len(data)/2]); !errors.Is(err, ErrUnsupportedFormat) {
 			t.Fatalf("err = %v, want ErrUnsupportedFormat", err)
 		}
 	})
@@ -119,16 +119,58 @@ func TestToWebP(t *testing.T) {
 			"broken jpeg": []byte("\xff\xd8\xff\xe0garbage"),
 			"empty":       {},
 		} {
-			if _, err := ToWebP(data); !errors.Is(err, ErrUnsupportedFormat) {
+			if _, err := Convert(data); !errors.Is(err, ErrUnsupportedFormat) {
 				t.Fatalf("%s: err = %v, want ErrUnsupportedFormat", name, err)
 			}
 		}
 	})
 }
 
+func TestConvertThumbnail(t *testing.T) {
+	cases := []struct {
+		name         string
+		format       string
+		w, h         int
+		wantW, wantH int
+	}{
+		{"landscape", "jpeg", 800, 600, 256, 192},
+		{"portrait", "png", 600, 800, 192, 256},
+		{"plain webp", "webp", 800, 600, 256, 192},
+		{"small image is not enlarged", "jpeg", 160, 120, 160, 120},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out := mustConvert(t, encode(t, c.format, testImage(c.w, c.h)))
+			if b := decodeWebP(t, out.Thumbnail).Bounds(); b.Dx() != c.wantW || b.Dy() != c.wantH {
+				t.Fatalf("thumbnail size = %v, want %dx%d", b, c.wantW, c.wantH)
+			}
+			if b := decodeWebP(t, out.Photo).Bounds(); b.Dx() != c.w || b.Dy() != c.h {
+				t.Fatalf("photo size = %v, want %dx%d", b, c.w, c.h)
+			}
+		})
+	}
+
+	t.Run("JPEG EXIF orientation is applied", func(t *testing.T) {
+		data := withOrientation(t, encode(t, "jpeg", testImage(800, 600)), 6) // 6 = 時計回りに90度回して表示する
+		img := decodeWebP(t, mustConvert(t, data).Thumbnail)
+		if b := img.Bounds(); b.Dx() != 192 || b.Dy() != 256 {
+			t.Fatalf("size = %v, want 192x256 (rotated)", b)
+		}
+		if r, _, b, _ := img.At(96, 10).RGBA(); r < b {
+			t.Fatalf("top is not red: r=%d b=%d", r, b)
+		}
+	})
+}
+
+// mustToWebP は Convert した写真を返す。
 func mustToWebP(t *testing.T, data []byte) []byte {
 	t.Helper()
-	out, err := ToWebP(data)
+	return mustConvert(t, data).Photo
+}
+
+func mustConvert(t *testing.T, data []byte) Converted {
+	t.Helper()
+	out, err := Convert(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,13 +220,20 @@ func writeChunk(buf *bytes.Buffer, name string, data []byte) {
 	}
 }
 
-// TestToWebPSpeed は、スマホの写真くらいの大きさ（4000x3000）の変換にかかる時間を記録する。
-func TestToWebPSpeed(t *testing.T) {
+// TestConvertSpeed は、スマホの写真くらいの大きさ（4000x3000）と、ブラウザで縮めて送られる写真
+// （長辺 2048 px の WebP）の変換にかかる時間を記録する。
+func TestConvertSpeed(t *testing.T) {
 	if testing.Short() {
 		t.Skip("slow")
 	}
-	data := encode(t, "jpeg", testImage(4000, 3000))
-	start := time.Now()
-	out := mustToWebP(t, data)
-	t.Logf("4000x3000 jpeg %d bytes -> webp %d bytes in %v", len(data), len(out), time.Since(start))
+	for _, c := range []struct {
+		format string
+		w, h   int
+	}{{"jpeg", 4000, 3000}, {"webp", 2048, 1536}} {
+		data := encode(t, c.format, testImage(c.w, c.h))
+		start := time.Now()
+		out := mustConvert(t, data)
+		t.Logf("%dx%d %s %d bytes -> webp %d bytes, thumbnail %d bytes in %v",
+			c.w, c.h, c.format, len(data), len(out.Photo), len(out.Thumbnail), time.Since(start))
+	}
 }

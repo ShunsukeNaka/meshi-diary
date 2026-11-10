@@ -75,6 +75,10 @@ func TestPhotos(t *testing.T) {
 		if got[2].Position != 2 || got[2].Alt == nil || *got[2].Alt != alt {
 			t.Fatalf("third = %+v", got[2])
 		}
+		// サムネイルのキーは、追加した写真には入り、前からある写真は NULL のまま
+		if got[0].ThumbnailKey != nil || got[1].ThumbnailKey == nil || *got[1].ThumbnailKey != *added[0].ThumbnailKey {
+			t.Fatalf("thumbnail keys = %v, %v", got[0].ThumbnailKey, got[1].ThumbnailKey)
+		}
 	})
 
 	t.Run("AddMany rejects more than 10 photos and adds none", func(t *testing.T) {
@@ -191,5 +195,6 @@ func TestPhotos(t *testing.T) {
 
 func newTestPhoto(diaryID uuid.UUID, alt *string) Photo {
 	id := uuid.New()
-	return Photo{ID: id, ObjectKey: "photos/" + diaryID.String() + "/" + id.String() + ".webp", Alt: alt}
+	thumbnailKey := "thumbnails/" + diaryID.String() + "/" + id.String() + ".webp"
+	return Photo{ID: id, ObjectKey: "photos/" + diaryID.String() + "/" + id.String() + ".webp", ThumbnailKey: &thumbnailKey, Alt: alt}
 }

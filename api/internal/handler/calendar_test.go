@@ -67,9 +67,20 @@ func TestCalendar(t *testing.T) {
 		if d6.Date != "2026-11-06" || len(d6.Diaries) != 2 || d6.Diaries[0].ID != noPhoto.ID || d6.Diaries[1].ID != withPhoto.ID {
 			t.Fatalf("11/06 = %+v", d6)
 		}
-		// サムネイルは日記の1枚目の写真
-		if d6.Diaries[0].ThumbnailURL != nil || d6.Diaries[1].ThumbnailURL == nil || *d6.Diaries[1].ThumbnailURL != "https://r2.test/"+photo.ObjectKey+"?expires=3600" {
+		// サムネイルは日記の1枚目の写真のサムネイル
+		if d6.Diaries[0].ThumbnailURL != nil || d6.Diaries[1].ThumbnailURL == nil || *d6.Diaries[1].ThumbnailURL != "https://r2.test/"+*photo.ThumbnailKey+"?expires=3600" {
 			t.Fatalf("11/06 thumbnails = %+v", d6.Diaries)
+		}
+	})
+
+	t.Run("photo without a thumbnail uses the photo itself", func(t *testing.T) {
+		e := newDiaryTestEnv(t)
+		d := e.addDiaryOn(userID, "2026-11-06", postgres.MealTypeLunch, at(0))
+		photo := e.addPhotoWithoutThumbnail(d.ID, 0)
+
+		body := getCalendar(t, e, userID, "2026-11")
+		if got := body.Days[0].Diaries[0].ThumbnailURL; got == nil || *got != "https://r2.test/"+photo.ObjectKey+"?expires=3600" {
+			t.Fatalf("thumbnail = %v", got)
 		}
 	})
 
@@ -99,7 +110,7 @@ func TestCalendar(t *testing.T) {
 		}
 		l1 := got[1]
 		if l1.Status != postgres.MealTypeLunch || l1.Info == nil || *l1.Info != "駅前のラーメン屋" || l1.BodyHead != "本文" ||
-			l1.ThumbnailURL == nil || *l1.ThumbnailURL != "https://r2.test/"+photo.ObjectKey+"?expires=3600" {
+			l1.ThumbnailURL == nil || *l1.ThumbnailURL != "https://r2.test/"+*photo.ThumbnailKey+"?expires=3600" {
 			t.Fatalf("lunch1 = %+v", l1)
 		}
 		if got[2].Info != nil || got[2].ThumbnailURL != nil {

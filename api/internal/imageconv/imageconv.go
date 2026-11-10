@@ -36,34 +36,73 @@ var supported = map[string]bool{
 	"image/webp": true,
 }
 
-// ToWebP は JPEG・PNG・WebP の画像を WebP にする。大きさは変えない。
+// ThumbnailShortSide はサムネイルの短辺（px）。カレンダーのマス（スマホで約 43×38 px、PC で約 100×70 px）と
+// 一覧（56 px）に object-cover で表示するので、画素の密度が 2〜3 倍の画面でもぼやけない大きさにする。
+const ThumbnailShortSide = 192
+
+// Converted は保存する写真と、そのサムネイル。どちらも WebP。
+type Converted struct {
+	Photo     []byte // 送られた写真の大きさのまま
+	Thumbnail []byte // 短辺を ThumbnailShortSide に縮めたもの
+}
+
+// Convert は JPEG・PNG・WebP の画像を WebP にし、サムネイルも作る。写真の大きさは変えない。
 // JPEG の EXIF の向き（スマホで縦に撮った写真など）は、画素を回転させて反映する（WebP には EXIF を残さないため）。
 // WebP は、EXIF・XMP・アニメーションがなければ、変換し直さずにそのまま返す（圧縮を二度すると画質が落ちるため）。
-func ToWebP(data []byte) ([]byte, error) {
+func Convert(data []byte) (Converted, error) {
 	contentType := http.DetectContentType(data)
 	if !supported[contentType] {
-		return nil, ErrUnsupportedFormat
+		return Converted{}, ErrUnsupportedFormat
 	}
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrUnsupportedFormat, err)
+		return Converted{}, fmt.Errorf("%w: %v", ErrUnsupportedFormat, err)
 	}
 	if cfg.Width > maxDimension || cfg.Height > maxDimension {
-		return nil, ErrTooLarge
+		return Converted{}, ErrTooLarge
 	}
 
 	if contentType == "image/webp" && isPlainWebP(data) {
-		// 壊れていないかは、最後まで読んで確かめる
-		if _, err := webp.Decode(bytes.NewReader(data)); err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrUnsupportedFormat, err)
+		// 最後まで読んで、壊れていないかを確かめる。読んだ画像はサムネイルに使う
+		img, err := webp.Decode(bytes.NewReader(data))
+		if err != nil {
+			return Converted{}, fmt.Errorf("%w: %v", ErrUnsupportedFormat, err)
 		}
-		return data, nil
+		thumb, err := encodeWebP(shrink(img))
+		if err != nil {
+			return Converted{}, err
+		}
+		return Converted{Photo: data, Thumbnail: thumb}, nil
 	}
 
 	img, err := imaging.Decode(bytes.NewReader(data), imaging.AutoOrientation(true))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrUnsupportedFormat, err)
+		return Converted{}, fmt.Errorf("%w: %v", ErrUnsupportedFormat, err)
 	}
+	photo, err := encodeWebP(img)
+	if err != nil {
+		return Converted{}, err
+	}
+	thumb, err := encodeWebP(shrink(img))
+	if err != nil {
+		return Converted{}, err
+	}
+	return Converted{Photo: photo, Thumbnail: thumb}, nil
+}
+
+// shrink は短辺が ThumbnailShortSide になるように縮める。もとから小さい画像は、大きくせずにそのまま返す。
+func shrink(img image.Image) image.Image {
+	b := img.Bounds()
+	if min(b.Dx(), b.Dy()) <= ThumbnailShortSide {
+		return img
+	}
+	if b.Dx() < b.Dy() {
+		return imaging.Resize(img, ThumbnailShortSide, 0, imaging.Lanczos)
+	}
+	return imaging.Resize(img, 0, ThumbnailShortSide, imaging.Lanczos)
+}
+
+func encodeWebP(img image.Image) ([]byte, error) {
 	var out bytes.Buffer
 	if err := webp.Encode(&out, img, webp.Options{Quality: quality, Method: method}); err != nil {
 		return nil, fmt.Errorf("encode webp: %w", err)

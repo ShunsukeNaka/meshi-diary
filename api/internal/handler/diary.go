@@ -237,7 +237,7 @@ func DeleteDiary(d Deps) http.HandlerFunc {
 			return
 		}
 		for _, p := range photos {
-			deletePhotoFile(r.Context(), d.Storage, p.ObjectKey)
+			deletePhotoFiles(r.Context(), d.Storage, p)
 		}
 		w.WriteHeader(http.StatusNoContent)
 	}

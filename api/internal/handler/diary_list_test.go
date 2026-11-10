@@ -44,7 +44,7 @@ func TestListDiaries(t *testing.T) {
 			t.Fatalf("body = %+v", body)
 		}
 		l, d := body.Diaries[0], body.Diaries[1]
-		if l.ID != lunch.ID.String() || l.ThumbnailURL == nil || *l.ThumbnailURL != "https://r2.test/"+photo.ObjectKey+"?expires=3600" {
+		if l.ID != lunch.ID.String() || l.ThumbnailURL == nil || *l.ThumbnailURL != "https://r2.test/"+*photo.ThumbnailKey+"?expires=3600" {
 			t.Fatalf("lunch = %+v", l)
 		}
 		if d.ID != dinner.ID.String() || d.ThumbnailURL != nil || d.Body != "本文" {

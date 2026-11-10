@@ -77,7 +77,7 @@ func DeletePhoto(d Deps) http.HandlerFunc {
 			httpx.WriteInternalError(w, err)
 			return
 		}
-		deletePhotoFile(r.Context(), d.Storage, photo.ObjectKey)
+		deletePhotoFiles(r.Context(), d.Storage, photo)
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

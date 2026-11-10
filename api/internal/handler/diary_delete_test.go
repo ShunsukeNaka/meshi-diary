@@ -25,10 +25,13 @@ func TestDeleteDiary(t *testing.T) {
 		if _, ok := e.diaries.byID[d.ID]; ok {
 			t.Fatal("diary was not deleted")
 		}
-		for _, p := range []string{p0.ObjectKey, p1.ObjectKey} {
+		for _, p := range []string{p0.ObjectKey, *p0.ThumbnailKey, p1.ObjectKey, *p1.ThumbnailKey} {
 			if _, ok := e.storage.objects[p]; ok {
 				t.Fatalf("file %s was not deleted", p)
 			}
+		}
+		if _, ok := e.storage.objects[*keep.ThumbnailKey]; !ok {
+			t.Fatal("another diary's thumbnail was deleted")
 		}
 		if _, ok := e.storage.objects[keep.ObjectKey]; !ok {
 			t.Fatal("another diary's file was deleted")

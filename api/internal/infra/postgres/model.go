@@ -40,11 +40,12 @@ type Diary struct {
 }
 
 type Photo struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	DiaryID   uuid.UUID `gorm:"type:uuid"`
-	ObjectKey string
-	Position  int
-	Alt       *string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID           uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	DiaryID      uuid.UUID `gorm:"type:uuid"`
+	ObjectKey    string
+	ThumbnailKey *string // サムネイルがまだない写真は nil
+	Position     int
+	Alt          *string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
