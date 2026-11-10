@@ -1,5 +1,5 @@
 {
-  "version": "2.21",
+  "version": "2.22",
   "children": [
     {
       "type": "frame",
@@ -6772,6 +6772,324 @@
                   "fontWeight": "normal"
                 }
               ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "kgC7F",
+      "x": 1880,
+      "y": 140,
+      "name": "05 共有（日記を選ぶ）",
+      "clip": true,
+      "width": 390,
+      "height": 844,
+      "fill": "$bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "id": "XpKrW",
+          "type": "ref",
+          "ref": "Snacq",
+          "name": "Status Bar",
+          "width": "fill_container"
+        },
+        {
+          "type": "frame",
+          "id": "mTkP6",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "height": 52,
+          "padding": [
+            0,
+            8
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "e8yh9",
+              "name": "Close",
+              "width": 40,
+              "height": 40,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "tMkjg",
+                  "name": "Icon",
+                  "width": 22,
+                  "height": 22,
+                  "icon": "x",
+                  "library": "lucide",
+                  "fill": "$text-primary"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "fZQe1",
+              "name": "Title",
+              "fill": "$text-primary",
+              "content": "写真を追加",
+              "fontFamily": "$font",
+              "fontSize": 16,
+              "fontWeight": "700"
+            },
+            {
+              "type": "frame",
+              "id": "N5j6g",
+              "name": "Spacer",
+              "width": 40,
+              "height": 40
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "ZKttD",
+          "name": "Content",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 28,
+          "padding": [
+            8,
+            16,
+            24,
+            16
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "F7Ekz",
+              "name": "Shared Photos",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "gwCb6",
+                  "name": "Label",
+                  "fill": "$text-secondary",
+                  "content": "共有した写真（3枚）",
+                  "fontFamily": "$font",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "tohtW",
+                  "name": "Photos",
+                  "width": "fill_container",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 8,
+                      "id": "m1WWh",
+                      "name": "Photo 1",
+                      "fill": "$placeholder",
+                      "width": 80,
+                      "height": 80
+                    },
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 8,
+                      "id": "YqYB2",
+                      "name": "Photo 2",
+                      "fill": "$placeholder",
+                      "width": 80,
+                      "height": 80
+                    },
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 8,
+                      "id": "nYNXQ",
+                      "name": "Photo 3",
+                      "fill": "$placeholder",
+                      "width": 80,
+                      "height": 80
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "tIMj1",
+              "name": "Day Entries",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "q6yQ1v",
+                  "name": "Day Title",
+                  "fill": "$text-primary",
+                  "content": "11月10日（火）の日記に追加する",
+                  "fontFamily": "$font",
+                  "fontSize": 16,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "R2UHUv",
+                  "name": "Entry 昼食",
+                  "width": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": "$radius",
+                  "gap": 12,
+                  "padding": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 8,
+                      "id": "j9Oy6A",
+                      "name": "Thumbnail",
+                      "fill": "$placeholder",
+                      "width": 56,
+                      "height": 56
+                    },
+                    {
+                      "type": "frame",
+                      "id": "vXSV4",
+                      "name": "Texts",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "h4019",
+                          "name": "Meta",
+                          "fill": "$text-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "昼食 · 駅前のラーメン屋",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "ZNPPc",
+                          "name": "Preview",
+                          "fill": "$text-secondary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "研究室のみんなで新しくできたお店へ。",
+                          "fontFamily": "$font",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon",
+                      "id": "l40le",
+                      "name": "Add",
+                      "width": 20,
+                      "height": 20,
+                      "icon": "image-plus",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "lJf84",
+                  "name": "Entry 夕食",
+                  "width": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": "$radius",
+                  "gap": 12,
+                  "padding": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 8,
+                      "id": "ZpQ6K",
+                      "name": "Thumbnail",
+                      "fill": "$placeholder",
+                      "width": 56,
+                      "height": 56
+                    },
+                    {
+                      "type": "frame",
+                      "id": "kLcs2",
+                      "name": "Texts",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "MPi3S",
+                          "name": "Meta",
+                          "fill": "$text-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "夕食 · 友達の家で鍋",
+                          "fontFamily": "$font",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "u2WwMW",
+                          "name": "Preview",
+                          "fill": "$text-secondary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "久しぶりに高校の友達と集まった。",
+                          "fontFamily": "$font",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon",
+                      "id": "uMwWR",
+                      "name": "Add",
+                      "width": 20,
+                      "height": 20,
+                      "icon": "image-plus",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "MNDwP",
+              "name": "Spacer",
+              "width": "fill_container",
+              "height": "fill_container"
+            },
+            {
+              "id": "l34Mp8",
+              "type": "ref",
+              "ref": "HrLcL",
+              "name": "New Button",
+              "width": "fill_container",
+              "descendants": {
+                "CA1Oy": {
+                  "content": "新しく書く"
+                }
+              }
             }
           ]
         }
