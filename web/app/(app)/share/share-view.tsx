@@ -7,7 +7,7 @@ import { getDiary, listDiaries, type DayDiary } from "@/lib/api";
 import { formatMonthDay, mealLabels, todayJST } from "@/lib/date";
 import { takeSharedPhotos } from "@/lib/shared-photos";
 import { useFetch } from "@/lib/use-fetch";
-import { ChevronRightIcon, XIcon } from "@/components/icons";
+import { ImagePlusIcon, XIcon } from "@/components/icons";
 import RemoteImage from "@/components/remote-image";
 import DiaryEditor from "../diaries/diary-editor";
 import {
@@ -152,7 +152,7 @@ function ChooseDiary({
 }) {
   return (
     <main className="mx-auto flex w-full max-w-[480px] flex-1 flex-col">
-      <div className="flex h-[52px] items-center gap-1 px-2">
+      <div className="flex h-[52px] items-center justify-between px-2">
         <button
           type="button"
           aria-label="共有をやめる"
@@ -162,20 +162,21 @@ function ChooseDiary({
           <XIcon />
         </button>
         <h1 className="text-base font-bold text-text-primary">写真を追加</h1>
+        <span className="size-10" />
       </div>
 
-      <div className="flex flex-1 flex-col gap-6 px-6 pt-1 pb-6">
+      <div className="flex flex-1 flex-col gap-7 px-4 pt-2 pb-6">
         <section className="flex flex-col gap-2.5">
-          <p className="text-sm text-text-secondary">
-            共有した写真 {items.length}枚
+          <p className="text-[13px] text-text-secondary">
+            共有した写真（{items.length}枚）
           </p>
-          <ul className="flex flex-wrap gap-2">
+          <ul className="flex gap-2 overflow-x-auto">
             {items.map((i) => (
-              <li key={i.key}>
+              <li key={i.key} className="shrink-0">
                 <RemoteImage
                   src={i.previewUrl}
                   alt=""
-                  className="size-12 rounded-lg object-cover"
+                  className="size-20 rounded-lg object-cover"
                 />
               </li>
             ))}
@@ -212,8 +213,8 @@ function ChooseDiary({
                       {d.body.split("\n")[0]}
                     </span>
                   </span>
-                  <ChevronRightIcon
-                    size={18}
+                  <ImagePlusIcon
+                    size={20}
                     className="shrink-0 text-text-secondary"
                   />
                 </button>
@@ -223,7 +224,7 @@ function ChooseDiary({
         </section>
       </div>
 
-      <div className="sticky bottom-0 bg-bg px-6 pb-6">
+      <div className="sticky bottom-0 bg-bg px-4 pb-6">
         <button
           type="button"
           onClick={() => onChoose("new")}
