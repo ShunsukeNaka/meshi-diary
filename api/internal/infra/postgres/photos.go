@@ -49,7 +49,7 @@ func (p *Photos) FirstOfDiaries(ctx context.Context, diaryIDs []uuid.UUID) (map[
 }
 
 // AddMany は日記の今ある写真のうしろに、photos を渡した順に追加する。
-// photos の Position はここで入れる。ID と ObjectKey は呼ぶ側で入れておく。
+// photos の Position はここで入れる。ID・ObjectKey・ThumbnailKey は呼ぶ側で入れておく。
 // 追加すると MaxPhotosPerDiary を超えるときは ErrTooManyPhotos を返し、1枚も追加しない。
 func (p *Photos) AddMany(ctx context.Context, diaryID uuid.UUID, photos []Photo) error {
 	return p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

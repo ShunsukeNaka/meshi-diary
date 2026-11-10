@@ -256,11 +256,12 @@ type fakeStorage struct {
 	objects   map[string][]byte
 	deleted   []string
 	putErr    error
+	putErrFor string // このキーの前の部分で始まるファイルだけ、保存を putErr で失敗させる。空ならすべて
 	deleteErr error
 }
 
 func (f *fakeStorage) Put(_ context.Context, key, _ string, body io.Reader) error {
-	if f.putErr != nil {
+	if f.putErr != nil && strings.HasPrefix(key, f.putErrFor) {
 		return f.putErr
 	}
 	b, err := io.ReadAll(body)
@@ -341,10 +342,20 @@ func (e *diaryTestEnv) addDiaryOn(userID uuid.UUID, date string, status postgres
 	return d
 }
 
-// addPhoto は日記に position の写真を入れて返す。R2 にもファイルを置く。
+// addPhoto は日記に position の写真をサムネイルつきで入れて返す。R2 にも写真とサムネイルのファイルを置く。
 func (e *diaryTestEnv) addPhoto(diaryID uuid.UUID, position int) postgres.Photo {
+	p := e.addPhotoWithoutThumbnail(diaryID, position)
+	key := thumbnailObjectKey(diaryID, p.ID)
+	p.ThumbnailKey = &key
+	e.photos.add(p)
+	_ = e.storage.Put(context.Background(), key, "image/webp", strings.NewReader("thumbnail"))
+	return p
+}
+
+// addPhotoWithoutThumbnail は、サムネイルを作る前に保存した写真（thumbnail_key が NULL）を入れて返す。R2 にもファイルを置く。
+func (e *diaryTestEnv) addPhotoWithoutThumbnail(diaryID uuid.UUID, position int) postgres.Photo {
 	id := uuid.New()
-	p := postgres.Photo{ID: id, DiaryID: diaryID, ObjectKey: "photos/" + diaryID.String() + "/" + id.String() + ".webp", Position: position, CreatedAt: testTime, UpdatedAt: testTime}
+	p := postgres.Photo{ID: id, DiaryID: diaryID, ObjectKey: photoObjectKey(diaryID, id), Position: position, CreatedAt: testTime, UpdatedAt: testTime}
 	e.photos.add(p)
 	_ = e.storage.Put(context.Background(), p.ObjectKey, "image/webp", strings.NewReader("webp"))
 	return p

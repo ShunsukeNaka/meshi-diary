@@ -90,7 +90,8 @@ func AddPhotos(d Deps) http.HandlerFunc {
 		photos := make([]postgres.Photo, len(converted))
 		for i := range converted {
 			id := uuid.New()
-			photos[i] = postgres.Photo{ID: id, ObjectKey: "photos/" + diary.ID.String() + "/" + id.String() + ".webp"}
+			thumbnailKey := thumbnailObjectKey(diary.ID, id)
+			photos[i] = postgres.Photo{ID: id, ObjectKey: photoObjectKey(diary.ID, id), ThumbnailKey: &thumbnailKey}
 			if len(alts) != 0 {
 				photos[i].Alt = normalizeInfo(&alts[i])
 			}
@@ -128,9 +129,9 @@ func writeTooManyPhotos(w http.ResponseWriter) {
 
 var errConvertedTooLarge = errors.New("converted photo is too large")
 
-// convertAll は写真をすべて WebP にする。CPU の数だけ並べて変換する。どれか1枚でも失敗したらエラーを返す。
-func convertAll(files []*multipart.FileHeader) ([][]byte, error) {
-	out := make([][]byte, len(files))
+// convertAll は写真をすべて WebP にし、サムネイルも作る。CPU の数だけ並べて変換する。どれか1枚でも失敗したらエラーを返す。
+func convertAll(files []*multipart.FileHeader) ([]imageconv.Converted, error) {
+	out := make([]imageconv.Converted, len(files))
 	errs := make([]error, len(files))
 	sem := make(chan struct{}, runtime.NumCPU())
 	var wg sync.WaitGroup
@@ -147,41 +148,46 @@ func convertAll(files []*multipart.FileHeader) ([][]byte, error) {
 	return out, errors.Join(errs...)
 }
 
-func convertOne(fh *multipart.FileHeader) ([]byte, error) {
+func convertOne(fh *multipart.FileHeader) (imageconv.Converted, error) {
 	f, err := fh.Open()
 	if err != nil {
-		return nil, err
+		return imageconv.Converted{}, err
 	}
 	defer f.Close()
 	data, err := io.ReadAll(f)
 	if err != nil {
-		return nil, err
+		return imageconv.Converted{}, err
 	}
-	webp, err := imageconv.ToWebP(data)
+	converted, err := imageconv.Convert(data)
 	if err != nil {
-		return nil, err
+		return imageconv.Converted{}, err
 	}
-	if len(webp) > maxPhotoBytes {
-		return nil, errConvertedTooLarge
+	if len(converted.Photo) > maxPhotoBytes {
+		return imageconv.Converted{}, errConvertedTooLarge
 	}
-	return webp, nil
+	return converted, nil
 }
 
-// savePhotos は WebP を R2 に保存してから、photos の行をまとめて追加する。
+// savePhotos は写真とサムネイルを R2 に保存してから、photos の行をまとめて追加する。
 // 途中で失敗したときは、R2 に保存したファイルを消してエラーを返す。
-func savePhotos(ctx context.Context, d Deps, diaryID uuid.UUID, photos []postgres.Photo, files [][]byte) error {
+func savePhotos(ctx context.Context, d Deps, diaryID uuid.UUID, photos []postgres.Photo, files []imageconv.Converted) error {
 	var saved []string
 	cleanup := func() {
 		for _, key := range saved {
-			deletePhotoFile(ctx, d.Storage, key)
+			deleteFile(ctx, d.Storage, key)
 		}
 	}
 	for i, p := range photos {
-		if err := d.Storage.Put(ctx, p.ObjectKey, "image/webp", bytes.NewReader(files[i])); err != nil {
-			cleanup()
-			return err
+		for _, f := range []struct {
+			key  string
+			data []byte
+		}{{p.ObjectKey, files[i].Photo}, {*p.ThumbnailKey, files[i].Thumbnail}} {
+			if err := d.Storage.Put(ctx, f.key, "image/webp", bytes.NewReader(f.data)); err != nil {
+				cleanup()
+				return err
+			}
+			saved = append(saved, f.key)
 		}
-		saved = append(saved, p.ObjectKey)
 	}
 	if err := d.Photos.AddMany(ctx, diaryID, photos); err != nil {
 		cleanup()

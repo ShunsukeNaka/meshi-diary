@@ -22,12 +22,27 @@ func TestDeletePhoto(t *testing.T) {
 		if rec.Code != http.StatusNoContent {
 			t.Fatalf("status = %d (%s)", rec.Code, rec.Body.String())
 		}
-		if _, ok := e.storage.objects[p1.ObjectKey]; ok {
-			t.Fatal("file was not deleted")
+		for _, key := range []string{p1.ObjectKey, *p1.ThumbnailKey} {
+			if _, ok := e.storage.objects[key]; ok {
+				t.Fatalf("file %s was not deleted", key)
+			}
 		}
 		got, _ := e.photos.ListByDiary(t.Context(), d.ID)
 		if len(got) != 2 || got[0].ID != p0.ID || got[1].ID != p2.ID || got[1].Position != 1 {
 			t.Fatalf("photos = %+v", got)
+		}
+	})
+
+	t.Run("photo without a thumbnail deletes only the photo file", func(t *testing.T) {
+		e := newDiaryTestEnv(t)
+		d := e.addDiary(userID)
+		p := e.addPhotoWithoutThumbnail(d.ID, 0)
+		rec := serve(e.router, http.MethodDelete, "/diaries/"+d.ID.String()+"/photos/"+p.ID.String(), e.cookie(t, userID))
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("status = %d (%s)", rec.Code, rec.Body.String())
+		}
+		if len(e.storage.deleted) != 1 || e.storage.deleted[0] != p.ObjectKey {
+			t.Fatalf("deleted = %v", e.storage.deleted)
 		}
 	})
 

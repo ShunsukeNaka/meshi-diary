@@ -58,9 +58,27 @@ func newPhotoResponses(ctx context.Context, storage PhotoStorage, photos []postg
 	return res, nil
 }
 
-// deletePhotoFile は R2 から写真のファイルを消す。
+// photoObjectKey は写真の R2 のキー（docs/table.md の photos.object_key）。
+func photoObjectKey(diaryID, photoID uuid.UUID) string {
+	return "photos/" + diaryID.String() + "/" + photoID.String() + ".webp"
+}
+
+// thumbnailObjectKey はサムネイルの R2 のキー（docs/table.md の photos.thumbnail_key）。
+func thumbnailObjectKey(diaryID, photoID uuid.UUID) string {
+	return "thumbnails/" + diaryID.String() + "/" + photoID.String() + ".webp"
+}
+
+// deletePhotoFiles は R2 から写真とサムネイルのファイルを消す。
+func deletePhotoFiles(ctx context.Context, storage PhotoStorage, p postgres.Photo) {
+	deleteFile(ctx, storage, p.ObjectKey)
+	if p.ThumbnailKey != nil {
+		deleteFile(ctx, storage, *p.ThumbnailKey)
+	}
+}
+
+// deleteFile は R2 からファイルを消す。
 // DB からはもう消えているので、失敗してもエラーにはせず、ログに残すだけにする（R2 にファイルが残るだけ）。
-func deletePhotoFile(ctx context.Context, storage PhotoStorage, key string) {
+func deleteFile(ctx context.Context, storage PhotoStorage, key string) {
 	if err := storage.Delete(ctx, key); err != nil {
 		slog.Error("delete photo file", "key", key, "err", err)
 	}

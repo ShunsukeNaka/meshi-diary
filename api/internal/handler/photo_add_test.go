@@ -113,6 +113,19 @@ func TestAddPhotos(t *testing.T) {
 			if !strings.Contains(p.URL, key) {
 				t.Fatalf("url = %q", p.URL)
 			}
+			thumbnailKey := "thumbnails/" + d.ID.String() + "/" + p.ID + ".webp"
+			thumbnail, ok := e.storage.objects[thumbnailKey]
+			if !ok {
+				t.Fatalf("thumbnail %s was not saved", thumbnailKey)
+			}
+			// 縮めた大きさは imageconv のテストで確かめる（ここの写真は小さいので縮まない）
+			if !bytes.HasPrefix(thumbnail, []byte("RIFF")) || !bytes.Equal(thumbnail[8:12], []byte("WEBP")) {
+				t.Fatalf("thumbnail %s is not webp", thumbnailKey)
+			}
+			row := e.photos.byID[uuid.MustParse(p.ID)]
+			if row.ThumbnailKey == nil || *row.ThumbnailKey != thumbnailKey {
+				t.Fatalf("thumbnail_key = %v, want %s", row.ThumbnailKey, thumbnailKey)
+			}
 		}
 	})
 
@@ -193,7 +206,7 @@ func TestAddPhotos(t *testing.T) {
 		if rec.Code != http.StatusInternalServerError {
 			t.Fatalf("status = %d, want 500", rec.Code)
 		}
-		if len(e.storage.objects) != 0 || len(e.storage.deleted) != 2 {
+		if len(e.storage.objects) != 0 || len(e.storage.deleted) != 4 { // 写真とサムネイルが 2 枚ずつ
 			t.Fatalf("objects = %d, deleted = %d", len(e.storage.objects), len(e.storage.deleted))
 		}
 	})
@@ -208,6 +221,23 @@ func TestAddPhotos(t *testing.T) {
 		}
 		if got, _ := e.photos.ListByDiary(t.Context(), d.ID); len(got) != 0 {
 			t.Fatal("photo row was added")
+		}
+	})
+
+	t.Run("thumbnail R2 failure removes the saved photo and adds nothing", func(t *testing.T) {
+		e := newDiaryTestEnv(t)
+		d := e.addDiary(userID)
+		e.storage.putErr = errors.New("r2 down")
+		e.storage.putErrFor = "thumbnails/"
+		rec := uploadPhotos(t, e, "/diaries/"+d.ID.String()+"/photos", e.cookie(t, userID), [][]byte{testJPEG(t)}, nil)
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("status = %d, want 500", rec.Code)
+		}
+		if got, _ := e.photos.ListByDiary(t.Context(), d.ID); len(got) != 0 {
+			t.Fatal("photo row was added")
+		}
+		if len(e.storage.objects) != 0 || len(e.storage.deleted) != 1 {
+			t.Fatalf("objects = %d, deleted = %v", len(e.storage.objects), e.storage.deleted)
 		}
 	})
 

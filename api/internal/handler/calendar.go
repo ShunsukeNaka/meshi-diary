@@ -90,7 +90,8 @@ func bodyHead(body string) string {
 	return body
 }
 
-// thumbnailURLs は日記ごとの1枚目の写真の表示用 URL を、日記の id をキーにして返す。写真がない日記はキーに入らない。
+// thumbnailURLs は日記ごとの1枚目の写真のサムネイルの表示用 URL を、日記の id をキーにして返す。写真がない日記はキーに入らない。
+// サムネイルがまだない写真（サムネイルを作る前に保存した写真）は、写真そのものの URL を返す。
 func thumbnailURLs(r *http.Request, d Deps, diaries []postgres.Diary) (map[uuid.UUID]string, error) {
 	ids := make([]uuid.UUID, len(diaries))
 	for i, diary := range diaries {
@@ -102,7 +103,11 @@ func thumbnailURLs(r *http.Request, d Deps, diaries []postgres.Diary) (map[uuid.
 	}
 	urls := make(map[uuid.UUID]string, len(first))
 	for diaryID, photo := range first {
-		url, err := d.Storage.PresignGet(r.Context(), photo.ObjectKey, photoURLExpiry)
+		key := photo.ObjectKey
+		if photo.ThumbnailKey != nil {
+			key = *photo.ThumbnailKey
+		}
+		url, err := d.Storage.PresignGet(r.Context(), key, photoURLExpiry)
 		if err != nil {
 			return nil, err
 		}
