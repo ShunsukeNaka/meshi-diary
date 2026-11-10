@@ -44,6 +44,12 @@ export function fromSaved(photos: Photo[]): PhotoItem[] {
   }));
 }
 
+// 選んだ写真を、画面の写真にする。プレビュー用の URL は、使い終わったら URL.revokeObjectURL で解放する
+export function toAddedItem(file: File): PhotoItem & { kind: "added" } {
+  const previewUrl = URL.createObjectURL(file);
+  return { key: previewUrl, kind: "added", file, previewUrl, alt: null };
+}
+
 export function itemSrc(item: PhotoItem): string {
   return item.kind === "existing" ? item.url : item.previewUrl;
 }
