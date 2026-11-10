@@ -31,6 +31,7 @@ import {
   maxPhotos,
   photosChanged,
   savePhotos,
+  toAddedItem,
   type PhotoItem,
 } from "./photo-edits";
 import PhotoSheet from "./photo-sheet";
@@ -38,21 +39,31 @@ import PhotoStrip from "./photo-strip";
 
 // 日記の編集画面（docs/v2.pen の「03 日記の編集」「PC 03 日記の編集」）。
 // diaryId がないときは新しく書く。あるときはその日記を編集する。
+// 写真アプリから共有したときは、共有した写真を initialAdded に、入れられなかった理由を initialPhotoError に渡す。
 export default function DiaryEditor({
   diaryId,
   initial,
   initialPhotos = [],
+  initialAdded = [],
+  initialPhotoError = null,
 }: {
   diaryId?: string;
   initial: DiaryInput;
   initialPhotos?: Photo[];
+  initialAdded?: PhotoItem[];
+  initialPhotoError?: string | null;
 }) {
   const router = useRouter();
   const [input, setInput] = useState<DiaryInput>(initial);
   const [initialItems] = useState<PhotoItem[]>(() => fromSaved(initialPhotos));
-  const [photos, setPhotos] = useState<PhotoItem[]>(initialItems);
+  const [photos, setPhotos] = useState<PhotoItem[]>(() => [
+    ...initialItems,
+    ...initialAdded,
+  ]);
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(
+    initialPhotoError,
+  );
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
@@ -79,10 +90,10 @@ export default function DiaryEditor({
     if (problem) {
       return;
     }
-    const added: PhotoItem[] = files.map((file) => {
-      const previewUrl = URL.createObjectURL(file);
-      previews.current.add(previewUrl);
-      return { key: previewUrl, kind: "added", file, previewUrl, alt: null };
+    const added = files.map((file) => {
+      const item = toAddedItem(file);
+      previews.current.add(item.previewUrl);
+      return item;
     });
     setPhotos((prev) => [...prev, ...added]);
   }
