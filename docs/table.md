@@ -36,6 +36,7 @@ ER図は [er-diagram.dio](er-diagram.dio)（draw.io）。
 | id | uuid | PK, default `gen_random_uuid()` | | |
 | diary_id | uuid | NOT NULL, FK → diaries.id, ON DELETE CASCADE | | |
 | object_key | text | NOT NULL, UNIQUE | R2 のオブジェクトキー。例: `photos/{diary_id}/{photo_id}.webp` | URL ではなくキーを保存し、表示のたびに署名付き URL を発行する。アップロードされた画像は webp に変換して保存する |
+| thumbnail_key | text | UNIQUE | サムネイルの R2 のオブジェクトキー。例: `thumbnails/{diary_id}/{photo_id}.webp` | カレンダーと一覧のマスは小さいので、元の写真ではなく短辺 192 px に縮めたものを表示する。NULL のときは元の写真を表示する（サムネイルを作る前に保存した写真） |
 | position | int | NOT NULL | 表示順（0 始まり） | |
 | alt | text | | 写真の説明・メモ | |
 | created_at | timestamptz | NOT NULL, default `now()` | | |
@@ -47,9 +48,10 @@ ER図は [er-diagram.dio](er-diagram.dio)（draw.io）。
 
 ## 設計メモ
 
-- **サムネイル**: カレンダーに出す「その日の写真の1枚目」は、その日の日記を `created_at` の古い順に見て、写真がある最初の日記の `position = 0` の写真とする。専用のカラムは持たず、一覧取得のクエリで求める
-- **署名付き URL は保存しない**: 有効期限があるため。DB には `object_key` だけを持つ
-- **写真の削除**: 日記を削除すると photos の行は CASCADE で消えるが、R2 のオブジェクトは残る。そのため API 側で R2 のオブジェクトも削除する
+- **サムネイルにする写真**: カレンダーに出す「その日の写真の1枚目」は、その日の日記を `created_at` の古い順に見て、写真がある最初の日記の `position = 0` の写真とする。専用のカラムは持たず、一覧取得のクエリで求める
+- **サムネイルの画像**: 写真を保存するときに、短辺 192 px の WebP を作って `thumbnail_key` に保存する。前からある写真は `thumbnail_key` が NULL なので、API は元の写真の URL を返す
+- **署名付き URL は保存しない**: 有効期限があるため。DB には `object_key`・`thumbnail_key` だけを持つ
+- **写真の削除**: 日記を削除すると photos の行は CASCADE で消えるが、R2 のオブジェクトは残る。そのため API 側で R2 のオブジェクト（写真とサムネイル）も削除する
 - **users テーブルを持つ理由**: 利用者は自分だけだが、ログインした人が自分かどうか（`google_sub` が一致するか）をこのテーブルで確認する
 - **updated_at の更新**: `default now()` が効くのは INSERT のときだけ。UPDATE のときはアプリ（またはトリガー）で `now()` を入れる
 - **DB では持たないルール**: 写真は10枚までなどのルールは、DB の制約ではなくドメインモデル（[domain-model.svg](domain-model.svg)）の側で確かめる
