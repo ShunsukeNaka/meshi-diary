@@ -6,7 +6,9 @@ Go で書いた API サーバー。仕様は [docs/api.md](../docs/api.md)、テ
 
 ```
 api/
-├── cmd/server/          エントリーポイント（設定の読み込み、DB・R2 の準備、HTTP サーバーの起動）
+├── cmd/
+│   ├── server/              エントリーポイント（設定の読み込み、DB・R2 の準備、HTTP サーバーの起動）
+│   └── backfill-thumbnails/ サムネイルがまだない写真のサムネイルを作る（1回だけ手で実行する）
 └── internal/
     ├── auth/            ログイン（ID トークンの検証、セッション Cookie、認証ミドルウェア）
     ├── config/          環境変数の読み込み
@@ -42,6 +44,7 @@ curl -i http://127.0.0.1:8080/health
 | `make test-db` | DB への書き込み・読み出しを確かめる。トランザクションをロールバックするのでデータは残らない。`TEST_DATABASE_URL` がなければ `DATABASE_URL` を使う |
 | `make migrate-up` | マイグレーションを適用する |
 | `make migrate-down` | マイグレーションを1つ戻す |
+| `make backfill-thumbnails` | サムネイルがまだない（`thumbnail_key` が NULL の）写真のサムネイルを作る。`ARGS=-dry-run` を付けると、対象の枚数を数えるだけ |
 
 マイグレーションは [golang-migrate](https://github.com/golang-migrate/migrate) を `go run` で実行するので、別にインストールしなくてよい。
 
@@ -77,6 +80,20 @@ GitHub の Actions のページから手動でも実行できる（`workflow_dis
 | 起動 | systemd のサービス `meshi-diary-api`（[deploy/meshi-diary-api.service](deploy/meshi-diary-api.service)）。`/etc/systemd/system/` に置き、`shunsuke` で動かす |
 
 `.env` は CI から送らない。サーバーに手で置く。マイグレーションも CI では行わないので、手元で `make migrate-up` を実行する。
+
+### 前からある写真のサムネイルを作る（1回だけ）
+
+サムネイルを作るようにする前（#103）に保存した写真は `thumbnail_key` が NULL で、カレンダーと一覧に元の写真を表示している。手元で、本番の DB と R2 を指す `.env` を使って実行する（`make migrate-up` と同じ）。
+
+```sh
+cd api
+make backfill-thumbnails ARGS=-dry-run   # 対象の枚数を数える
+make backfill-thumbnails                 # 古い写真から1枚ずつ作る。最後に created・skipped・failed の数が出る
+make backfill-thumbnails ARGS=-dry-run   # 0 になっていればよい
+```
+
+- API を止めずに実行してよい。途中で止めても（Ctrl-C）、失敗した写真があっても、もう一度実行すれば残りを作る
+- 失敗した写真は、ログの `photo failed` に `photo_id` と理由が出る。`thumbnail_key` は NULL のままなので、元の写真で表示される
 
 ### サーバーの初期設定（1回だけ）
 

@@ -48,6 +48,23 @@ func (p *Photos) FirstOfDiaries(ctx context.Context, diaryIDs []uuid.UUID) (map[
 	return first, nil
 }
 
+// ListWithoutThumbnail はサムネイルがまだない（thumbnail_key が NULL の）写真を、古い順に返す。
+func (p *Photos) ListWithoutThumbnail(ctx context.Context) ([]Photo, error) {
+	photos := []Photo{}
+	err := p.db.WithContext(ctx).Where("thumbnail_key IS NULL").Order("created_at, id").Find(&photos).Error
+	return photos, err
+}
+
+// SetThumbnailKey は写真 photoID の thumbnail_key に key を入れる。入れたとき（もう同じ key が入っていたときも）は true を返す。
+// 写真がもうない、または別の thumbnail_key が入っているときは、何も変えずに false を返す。
+// false のときは key のファイルをどの写真も指していないので、呼ぶ側で消してよい。
+func (p *Photos) SetThumbnailKey(ctx context.Context, photoID uuid.UUID, key string) (bool, error) {
+	res := p.db.WithContext(ctx).Model(&Photo{}).
+		Where("id = ? AND (thumbnail_key IS NULL OR thumbnail_key = ?)", photoID, key).
+		Updates(map[string]any{"thumbnail_key": key, "updated_at": gorm.Expr("now()")})
+	return res.RowsAffected == 1, res.Error
+}
+
 // AddMany は日記の今ある写真のうしろに、photos を渡した順に追加する。
 // photos の Position はここで入れる。ID・ObjectKey・ThumbnailKey は呼ぶ側で入れておく。
 // 追加すると MaxPhotosPerDiary を超えるときは ErrTooManyPhotos を返し、1枚も追加しない。

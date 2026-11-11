@@ -57,6 +57,55 @@ func TestPhotos(t *testing.T) {
 			t.Fatalf("no ids: %v, %v", empty, err)
 		}
 	})
+	t.Run("ListWithoutThumbnail and SetThumbnailKey", func(t *testing.T) {
+		diary := createTestDiary(t, tx, user.ID, "2026-11-08", MealTypeLunch)
+		without := createTestPhoto(t, tx, diary.ID, 0)
+		with := newTestPhoto(diary.ID, nil)
+		if err := photos.AddMany(ctx, diary.ID, []Photo{with}); err != nil {
+			t.Fatal(err)
+		}
+		has := func(ps []Photo, id uuid.UUID) bool {
+			for _, p := range ps {
+				if p.ID == id {
+					return true
+				}
+			}
+			return false
+		}
+
+		got, err := photos.ListWithoutThumbnail(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !has(got, without.ID) || has(got, with.ID) {
+			t.Fatalf("ListWithoutThumbnail = %+v", got)
+		}
+
+		key := "thumbnails/" + diary.ID.String() + "/" + without.ID.String() + ".webp"
+		if set, err := photos.SetThumbnailKey(ctx, without.ID, key); err != nil || !set {
+			t.Fatalf("set = %v, err = %v", set, err)
+		}
+		// 同じキーをもう一度入れるのはよい（もう一度実行したとき）
+		if set, err := photos.SetThumbnailKey(ctx, without.ID, key); err != nil || !set {
+			t.Fatalf("set again = %v, err = %v", set, err)
+		}
+		if got, _ := photos.ListWithoutThumbnail(ctx); has(got, without.ID) {
+			t.Fatal("photo is still listed after SetThumbnailKey")
+		}
+		listed, _ := photos.ListByDiary(ctx, diary.ID)
+		if listed[0].ThumbnailKey == nil || *listed[0].ThumbnailKey != key {
+			t.Fatalf("thumbnail_key = %v", listed[0].ThumbnailKey)
+		}
+
+		// 別のキーが入っている写真・ない写真は変えない
+		if set, err := photos.SetThumbnailKey(ctx, with.ID, key+".other"); err != nil || set {
+			t.Fatalf("other key: set = %v, err = %v", set, err)
+		}
+		if set, err := photos.SetThumbnailKey(ctx, uuid.New(), key+".missing"); err != nil || set {
+			t.Fatalf("missing photo: set = %v, err = %v", set, err)
+		}
+	})
+
 	t.Run("AddMany appends photos after the existing ones", func(t *testing.T) {
 		diary := createTestDiary(t, tx, user.ID, "2026-11-09", MealTypeLunch)
 		existing := createTestPhoto(t, tx, diary.ID, 0)

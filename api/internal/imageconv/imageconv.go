@@ -90,6 +90,16 @@ func Convert(data []byte) (Converted, error) {
 	return Converted{Photo: photo, Thumbnail: thumb}, nil
 }
 
+// Thumbnail は保存してある写真（Convert で作った WebP）から、サムネイルを作る。前からある写真のサムネイルを作るのに使う。
+// Convert と同じく、JPEG の EXIF の向きは画素を回転させて反映する（保存してある WebP には EXIF がないので、ふつうは何もしない）。
+func Thumbnail(data []byte) ([]byte, error) {
+	img, err := imaging.Decode(bytes.NewReader(data), imaging.AutoOrientation(true))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrUnsupportedFormat, err)
+	}
+	return encodeWebP(shrink(img))
+}
+
 // shrink は短辺が ThumbnailShortSide になるように縮める。もとから小さい画像は、大きくせずにそのまま返す。
 func shrink(img image.Image) image.Image {
 	b := img.Bounds()

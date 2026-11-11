@@ -162,6 +162,36 @@ func TestConvertThumbnail(t *testing.T) {
 	})
 }
 
+func TestThumbnail(t *testing.T) {
+	t.Run("shrinks a saved photo", func(t *testing.T) {
+		saved := mustToWebP(t, encode(t, "jpeg", testImage(800, 600)))
+		out, err := Thumbnail(saved)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if b := decodeWebP(t, out).Bounds(); b.Dx() != 256 || b.Dy() != 192 {
+			t.Fatalf("size = %v, want 256x192", b)
+		}
+	})
+
+	t.Run("same as the thumbnail made by Convert", func(t *testing.T) {
+		data := encode(t, "webp", testImage(600, 800))
+		out, err := Thumbnail(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(out, mustConvert(t, data).Thumbnail) {
+			t.Fatal("thumbnail differs from Convert")
+		}
+	})
+
+	t.Run("rejects broken data", func(t *testing.T) {
+		if _, err := Thumbnail([]byte("not an image")); !errors.Is(err, ErrUnsupportedFormat) {
+			t.Fatalf("err = %v, want ErrUnsupportedFormat", err)
+		}
+	})
+}
+
 // mustToWebP は Convert した写真を返す。
 func mustToWebP(t *testing.T, data []byte) []byte {
 	t.Helper()
