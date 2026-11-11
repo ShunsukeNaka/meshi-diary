@@ -90,7 +90,7 @@ func AddPhotos(d Deps) http.HandlerFunc {
 		photos := make([]postgres.Photo, len(converted))
 		for i := range converted {
 			id := uuid.New()
-			thumbnailKey := thumbnailObjectKey(diary.ID, id)
+			thumbnailKey := ThumbnailObjectKey(diary.ID, id)
 			photos[i] = postgres.Photo{ID: id, ObjectKey: photoObjectKey(diary.ID, id), ThumbnailKey: &thumbnailKey}
 			if len(alts) != 0 {
 				photos[i].Alt = normalizeInfo(&alts[i])

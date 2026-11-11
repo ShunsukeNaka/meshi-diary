@@ -63,8 +63,8 @@ func photoObjectKey(diaryID, photoID uuid.UUID) string {
 	return "photos/" + diaryID.String() + "/" + photoID.String() + ".webp"
 }
 
-// thumbnailObjectKey はサムネイルの R2 のキー（docs/table.md の photos.thumbnail_key）。
-func thumbnailObjectKey(diaryID, photoID uuid.UUID) string {
+// ThumbnailObjectKey はサムネイルの R2 のキー（docs/table.md の photos.thumbnail_key）。cmd/backfill-thumbnails でも使う。
+func ThumbnailObjectKey(diaryID, photoID uuid.UUID) string {
 	return "thumbnails/" + diaryID.String() + "/" + photoID.String() + ".webp"
 }
 

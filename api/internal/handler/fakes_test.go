@@ -345,7 +345,7 @@ func (e *diaryTestEnv) addDiaryOn(userID uuid.UUID, date string, status postgres
 // addPhoto は日記に position の写真をサムネイルつきで入れて返す。R2 にも写真とサムネイルのファイルを置く。
 func (e *diaryTestEnv) addPhoto(diaryID uuid.UUID, position int) postgres.Photo {
 	p := e.addPhotoWithoutThumbnail(diaryID, position)
-	key := thumbnailObjectKey(diaryID, p.ID)
+	key := ThumbnailObjectKey(diaryID, p.ID)
 	p.ThumbnailKey = &key
 	e.photos.add(p)
 	_ = e.storage.Put(context.Background(), key, "image/webp", strings.NewReader("thumbnail"))

@@ -2,7 +2,7 @@
 ENV := set -a; [ -f .env ] && . ./.env; set +a;
 MIGRATE := go run -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@v4.18.1 -path ../db/migrations
 
-.PHONY: run build test test-db migrate-up migrate-down
+.PHONY: run build test test-db migrate-up migrate-down backfill-thumbnails
 
 run:
 	$(ENV) go run ./cmd/server
@@ -22,3 +22,7 @@ migrate-up:
 
 migrate-down:
 	$(ENV) $(MIGRATE) -database "$$DATABASE_URL" down 1
+
+# サムネイルがまだない写真のサムネイルを作る（#103）。ARGS=-dry-run で数えるだけにできる
+backfill-thumbnails:
+	$(ENV) go run ./cmd/backfill-thumbnails $(ARGS)

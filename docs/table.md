@@ -49,7 +49,7 @@ ER図は [er-diagram.dio](er-diagram.dio)（draw.io）。
 ## 設計メモ
 
 - **サムネイルにする写真**: カレンダーに出す「その日の写真の1枚目」は、その日の日記を `created_at` の古い順に見て、写真がある最初の日記の `position = 0` の写真とする。専用のカラムは持たず、一覧取得のクエリで求める
-- **サムネイルの画像**: 写真を保存するときに、短辺 192 px の WebP を作って `thumbnail_key` に保存する。前からある写真は `thumbnail_key` が NULL なので、API は元の写真の URL を返す
+- **サムネイルの画像**: 写真を保存するときに、短辺 192 px の WebP を作って `thumbnail_key` に保存する。前からある写真は `thumbnail_key` が NULL なので、API は元の写真の URL を返す。前からある写真のサムネイルは `api/cmd/backfill-thumbnails` で作る（手順は api/README.md）
 - **署名付き URL は保存しない**: 有効期限があるため。DB には `object_key`・`thumbnail_key` だけを持つ
 - **写真の削除**: 日記を削除すると photos の行は CASCADE で消えるが、R2 のオブジェクトは残る。そのため API 側で R2 のオブジェクト（写真とサムネイル）も削除する
 - **users テーブルを持つ理由**: 利用者は自分だけだが、ログインした人が自分かどうか（`google_sub` が一致するか）をこのテーブルで確認する

@@ -62,6 +62,23 @@ func (c *Client) Put(ctx context.Context, key, contentType string, body io.Reade
 	return nil
 }
 
+// Get はオブジェクトを読み込む。
+func (c *Client) Get(ctx context.Context, key string) ([]byte, error) {
+	out, err := c.s3.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get object %q: %w", key, err)
+	}
+	defer out.Body.Close()
+	data, err := io.ReadAll(out.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read object %q: %w", key, err)
+	}
+	return data, nil
+}
+
 // PresignGet は表示用の期限付き URL を発行する。
 func (c *Client) PresignGet(ctx context.Context, key string, expires time.Duration) (string, error) {
 	req, err := c.presign.PresignGetObject(ctx, &s3.GetObjectInput{

@@ -62,6 +62,42 @@ func Load() (Config, error) {
 		{"SESSION_SECRET", string(cfg.Auth.SessionSecret)},
 		{"ALLOWED_EMAILS", strings.Join(cfg.Auth.AllowedEmails, ",")},
 	}
+	if err := checkRequired(required); err != nil {
+		return Config{}, err
+	}
+	if len(cfg.Auth.SessionSecret) < minSessionSecretLength {
+		return Config{}, fmt.Errorf("SESSION_SECRET must be at least %d bytes", minSessionSecretLength)
+	}
+	return cfg, nil
+}
+
+// LoadStores は DB と R2 の設定だけを読み込む。API サーバー以外のコマンド（cmd/backfill-thumbnails など）で使う。
+// ほかの値（ListenAddr・Auth）は空のまま返す。
+func LoadStores() (Config, error) {
+	cfg := Config{
+		DatabaseURL: os.Getenv("DATABASE_URL"),
+		R2: R2Config{
+			AccountID:       os.Getenv("R2_ACCOUNT_ID"),
+			AccessKeyID:     os.Getenv("R2_ACCESS_KEY_ID"),
+			SecretAccessKey: os.Getenv("R2_SECRET_ACCESS_KEY"),
+			Bucket:          os.Getenv("R2_BUCKET"),
+		},
+	}
+	err := checkRequired([]struct{ name, value string }{
+		{"DATABASE_URL", cfg.DatabaseURL},
+		{"R2_ACCOUNT_ID", cfg.R2.AccountID},
+		{"R2_ACCESS_KEY_ID", cfg.R2.AccessKeyID},
+		{"R2_SECRET_ACCESS_KEY", cfg.R2.SecretAccessKey},
+		{"R2_BUCKET", cfg.R2.Bucket},
+	})
+	if err != nil {
+		return Config{}, err
+	}
+	return cfg, nil
+}
+
+// checkRequired は値が空のものがあれば、その名前をすべて並べたエラーを返す。
+func checkRequired(required []struct{ name, value string }) error {
 	var missing []string
 	for _, r := range required {
 		if r.value == "" {
@@ -69,12 +105,9 @@ func Load() (Config, error) {
 		}
 	}
 	if len(missing) > 0 {
-		return Config{}, fmt.Errorf("missing required environment variables: %s", strings.Join(missing, ", "))
+		return fmt.Errorf("missing required environment variables: %s", strings.Join(missing, ", "))
 	}
-	if len(cfg.Auth.SessionSecret) < minSessionSecretLength {
-		return Config{}, fmt.Errorf("SESSION_SECRET must be at least %d bytes", minSessionSecretLength)
-	}
-	return cfg, nil
+	return nil
 }
 
 // splitEmails はカンマ区切りのメールアドレスを、前後の空白を除き小文字にそろえて返す。空の要素は捨てる。

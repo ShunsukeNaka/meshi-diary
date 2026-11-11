@@ -57,3 +57,22 @@ func TestLoadReportsMissingAuthVariables(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadStoresNeedsOnlyDBAndR2(t *testing.T) {
+	setRequired(t)
+	for _, k := range []string{"GOOGLE_CLIENT_ID", "SESSION_SECRET", "ALLOWED_EMAILS"} {
+		t.Setenv(k, "")
+	}
+	cfg, err := LoadStores()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.DatabaseURL != "postgresql://example" || cfg.R2.Bucket != "bucket" {
+		t.Fatalf("cfg = %+v", cfg)
+	}
+
+	t.Setenv("R2_BUCKET", "")
+	if _, err := LoadStores(); err == nil || !strings.Contains(err.Error(), "R2_BUCKET") {
+		t.Fatalf("err = %v, want R2_BUCKET error", err)
+	}
+}
