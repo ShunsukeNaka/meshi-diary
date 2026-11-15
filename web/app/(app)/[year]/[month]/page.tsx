@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "カレンダー | meshi-diary",
 };
 
+// カレンダーの URL は /YYYY/MM?date=D。/ は web/proxy.ts が今月のここへ転送する。
 // デザインは docs/v2.pen の「02 カレンダー」「PC 02 カレンダー」
 export default function CalendarPage() {
   return (
