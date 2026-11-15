@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import {
   getCalendar,
   type CalendarDay,
@@ -10,51 +11,54 @@ import {
 } from "@/lib/api";
 import {
   addMonths,
+  calendarHref,
+  calendarPath,
   calendarWeeks,
+  dateOfDay,
   formatMonth,
   formatMonthDay,
-  isDate,
-  isMonth,
   mealLabels,
   monthOf,
+  monthOfPath,
   todayJST,
   weekdays,
 } from "@/lib/date";
 import { useFetch } from "@/lib/use-fetch";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import RemoteImage from "@/components/remote-image";
-import LogoutButton from "./logout-button";
+import LogoutButton from "../../logout-button";
 
-// 表示している月と選んだ日は URL（?month=YYYY-MM&date=YYYY-MM-DD）に持つ。
+// 表示している月はパス、選んだ日はクエリに持つ（/2026/11?date=6）。
 // 詳細画面から戻ったときに、同じ月と日に戻れるようにするため。
+// 月はページを読み込み直さずに切り替えるので、params ではなく usePathname から読む
+// （history.replaceState で変えたパスは usePathname にも反映される）
 export default function CalendarView() {
+  const pathname = usePathname();
   const params = useSearchParams();
   const today = todayJST();
-  const paramDate = params.get("date");
-  const month = isMonth(params.get("month"))
-    ? params.get("month")!
-    : monthOf(isDate(paramDate) ? paramDate : today);
-  // 選んだ日は、いつも表示している月の中にする。
-  // URL に日がない・表示している月の外のときは、今月なら今日、ほかの月なら1日にする
+  const pathMonth = monthOfPath(pathname);
+  // 年月として正しくないパス（/2026/13 など）のときは今月にする
+  const month = pathMonth ?? monthOf(today);
+  // 日がない・その月にない日のときは、今月なら今日、ほかの月なら1日にする
   const date =
-    isDate(paramDate) && monthOf(paramDate) === month
-      ? paramDate
-      : monthOf(today) === month
-        ? today
-        : `${month}-01`;
+    dateOfDay(month, params.get("date")) ??
+    (monthOf(today) === month ? today : `${month}-01`);
 
-  // ページを読み込み直さずに URL だけ変える（useSearchParams にも反映される）
-  function setView(next: { month?: string; date?: string }) {
-    const q = new URLSearchParams({
-      month: next.month ?? month,
-      date: next.date ?? date,
-    });
-    window.history.replaceState(null, "", `?${q}`);
+  // 正しくないパスは、今月の URL に直しておく
+  useEffect(() => {
+    if (!pathMonth) {
+      window.history.replaceState(null, "", calendarPath(month));
+    }
+  }, [pathMonth, month]);
+
+  // ページを読み込み直さずに URL だけ変える（usePathname・useSearchParams にも反映される）
+  function select(next: string) {
+    window.history.replaceState(null, "", calendarHref(next));
   }
 
   // 月を切り替えたら、その月の1日を選ぶ
   function showMonth(next: string) {
-    setView({ month: next, date: `${next}-01` });
+    select(`${next}-01`);
   }
 
   // 日付を選んだときの一覧も、GET /calendar の diaries から出す（日付ごとには問い合わせない）
@@ -82,7 +86,7 @@ export default function CalendarView() {
             month={month}
             calendar={calendar}
             selected={date}
-            onSelect={(d) => setView({ date: d })}
+            onSelect={select}
           />
         </section>
         <section className="flex flex-col gap-5 lg:w-[380px] lg:pt-[60px]">

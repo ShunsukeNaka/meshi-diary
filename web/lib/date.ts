@@ -66,9 +66,31 @@ export function monthOf(date: string): string {
   return date.slice(0, 7);
 }
 
-// カレンダーで、date の月と日を選んだ状態の URL
+// カレンダーの URL は /YYYY/MM?date=D。月をパスに、選んだ日だけをクエリに持つ
+// 2026-11 → /2026/11
+export function calendarPath(month: string): string {
+  return `/${month.replace("-", "/")}`;
+}
+
+// カレンダーで、date の月と日を選んだ状態の URL。2026-11-06 → /2026/11?date=6
 export function calendarHref(date: string): string {
-  return `/?month=${monthOf(date)}&date=${date}`;
+  return `${calendarPath(monthOf(date))}?date=${Number(date.slice(8))}`;
+}
+
+// /2026/11 → 2026-11。カレンダーの URL でないときは null
+export function monthOfPath(pathname: string): string | null {
+  const m = /^\/(\d{4})\/(\d{2})\/?$/.exec(pathname);
+  const month = m ? `${m[1]}-${m[2]}` : null;
+  return isMonth(month) ? month : null;
+}
+
+// month の day 日（?date= の値）。その月にない日のときは null
+export function dateOfDay(month: string, day: string | null): string | null {
+  if (!day || !/^\d{1,2}$/.test(day)) {
+    return null;
+  }
+  const date = `${month}-${day.padStart(2, "0")}`;
+  return isDate(date) ? date : null;
 }
 
 export function addMonths(month: string, n: number): string {
